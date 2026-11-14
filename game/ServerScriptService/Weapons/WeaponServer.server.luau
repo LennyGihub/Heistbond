@@ -277,6 +277,10 @@ PoseRemote.OnServerEvent:Connect(function(player: Player, aiming: any, pitch: an
 	local p = math.clamp(pitch, -1.3, 1.3)
 	local y = math.clamp(yaw, -GunPose.MAX_YAW, GunPose.MAX_YAW)
 	h.weld.C0 = GunPose.cframe(h.torso.Size, aiming and 1 or 0, p, y)
+	local leftIK = h.weld.Part1 and h.weld.Part1:FindFirstChild("LeftHandIK") :: Attachment?
+	if leftIK then
+		leftIK.Position = aiming and GunPose.LEFT_AIM or GunPose.LEFT_READY
+	end
 	-- other clients rebuild the pose from these while they play this gun's reload animation
 	h.tool:SetAttribute("PoseAim", aiming)
 	h.tool:SetAttribute("PosePitch", p)

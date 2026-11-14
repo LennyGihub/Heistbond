@@ -12,10 +12,13 @@ local GRIP = Vector3.new(0, -0.272, 0.187) -- handle-space pistol grip (same poi
 local READY_GRIP = Vector3.new(0.12, 0.38, -0.82) -- torso space, for a standard 2 x 1.6 x 1 torso
 local READY_ROT = CFrame.Angles(0, math.rad(30), 0) * CFrame.Angles(math.rad(-35), 0, 0)
 
--- shouldered (aiming/shooting): stock on the right shoulder, sight at eye level. The body is bladed
--- (turned BLADE to the right of where you aim), so the gun points BLADE to the left of the torso.
-local AIM_GRIP = Vector3.new(0.72, 0.88, -0.56)
-GunPose.BLADE = math.rad(40)
+-- aiming/shooting: body square to the target, rifle centred on the chest with the stock pressed in,
+-- right hand at chest height (elbow hangs down), left hand on the front of the magazine well
+local AIM_GRIP = Vector3.new(0.0, 0.48, -0.8)
+GunPose.BLADE = 0
+-- where the left hand holds the gun (handle space): foregrip at low ready, magazine well while aiming
+GunPose.LEFT_READY = Vector3.new(0, -0.156, -0.746)
+GunPose.LEFT_AIM = Vector3.new(0, -0.12, -0.5)
 GunPose.MAX_YAW = math.rad(75) -- how far the gun can turn off the torso's facing
 
 local STANDARD = Vector3.new(2, 1.6, 1)

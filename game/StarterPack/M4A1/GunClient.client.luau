@@ -27,8 +27,8 @@ local gameSettings = UserSettings():GetService("UserGameSettings")
 
 -- camera offsets in camera space (right, up); aiming also pulls the camera in close
 local HIP_OFFSET = Vector2.new(1.6, 0.35)
-local AIM_OFFSET = Vector2.new(2.4, 1.1) -- over the (bladed) right shoulder, not behind it
-local AIM_DISTANCE = 8 -- studs from the character while aiming
+local AIM_OFFSET = Vector2.new(3.1, 0.45)
+local AIM_DISTANCE = 6.5 -- studs from the character while aiming
 local FACE_AFTER_SHOT = 0.6 -- seconds the character keeps facing the camera after hip fire
 local BASE_FOV = 70
 -- first person: where the gun's handle sits relative to the camera
@@ -346,10 +346,7 @@ end)
 
 -- Camera / aim -------------------------------------------------------------
 local function setAiming(on: boolean)
-	aiming = on and equipped
-	if humanoid then
-		humanoid.WalkSpeed = aiming and math.min(cfg.AimWalkSpeed, baseWalkSpeed) or baseWalkSpeed
-	end
+	aiming = on and equipped -- (HeavyMovement slows you down while aiming)
 end
 
 local function camRayParams(): RaycastParams
@@ -473,13 +470,6 @@ local function updateViewArms(handleCF: CFrame, camCF: CFrame)
 	end
 end
 
--- turn the character so it faces yawAngle (radians), smoothly; used while aiming (bladed stance)
-local function faceYaw(root: BasePart, yawAngle: number, dt: number)
-	local _, cur, _ = root.CFrame:ToOrientation()
-	local d = (yawAngle - cur + math.pi) % (2 * math.pi) - math.pi
-	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, cur + d * math.min(1, dt * 16), 0)
-end
-
 local function renderStep(dt: number)
 	local cam = Workspace.CurrentCamera
 	local hum = humanoid
@@ -534,12 +524,9 @@ local function renderStep(dt: number)
 	local yaw = 0
 
 	if firstPerson then
-		gameSettings.RotationType = Enum.RotationType.CameraRelative
-		hum.AutoRotate = false
-		if root then
-			local lv = cam.CFrame.LookVector
-			faceYaw(root, math.atan2(-lv.X, -lv.Z) - GunPose.BLADE, dt)
-		end
+		-- first person: face where you look (HeavyMovement turns the body)
+		local lv = cam.CFrame.LookVector
+		char:SetAttribute("AimYaw", math.atan2(-lv.X, -lv.Z) - GunPose.BLADE)
 		yaw = GunPose.BLADE -- other players see the shouldered gun pointing where we look
 		-- sway: the gun lags a little behind fast camera turns
 		local look = cam.CFrame.LookVector
@@ -585,15 +572,20 @@ local function renderStep(dt: number)
 			posePitch += (wantPitch - posePitch) * rate
 			yaw, pitch = poseYaw, posePitch
 		end
-		-- not engaged: the body faces where you walk. engaged: bladed stance, turned BLADE right of where you look
-		gameSettings.RotationType = Enum.RotationType.MovementRelative
-		hum.AutoRotate = not engaged
-		if engaged and root then
+		-- not engaged: the body faces where you walk. engaged: face where you look.
+		-- (HeavyMovement does the turning, at a limited rate)
+		if engaged then
 			local lv = cam.CFrame.LookVector
-			faceYaw(root, math.atan2(-lv.X, -lv.Z) - GunPose.BLADE, dt)
+			char:SetAttribute("AimYaw", math.atan2(-lv.X, -lv.Z) - GunPose.BLADE)
+		else
+			char:SetAttribute("AimYaw", nil)
 		end
 		if weld and torso then
 			weld.C0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
+		end
+		local leftIK = handle:FindFirstChild("LeftHandIK") :: Attachment?
+		if leftIK and not GunAnim.isReloading(tool) then
+			leftIK.Position = GunPose.LEFT_READY:Lerp(GunPose.LEFT_AIM, holdAlpha)
 		end
 	end
 	wasFirstPerson = firstPerson
@@ -686,8 +678,10 @@ local function unequip()
 	local cam = Workspace.CurrentCamera
 	cam.FieldOfView = BASE_FOV
 	if humanoid then
-		humanoid.AutoRotate = true
-		humanoid.WalkSpeed = baseWalkSpeed
+		local c = humanoid.Parent
+		if c then
+			c:SetAttribute("AimYaw", nil)
+		end
 	end
 	if gui then
 		gui:Destroy()
