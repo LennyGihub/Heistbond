@@ -38,10 +38,18 @@ export type State = {
 CoverPose.BACK_GAP = 0.08 -- gap between the back and the wall (CoverClient keeps it)
 
 -- steps: relative to the body each foot moves STEP_HALF studs either side of its spot; one full
--- cycle (each foot steps once) moves the body STEP_LEN studs, which CoverClient uses to advance the
--- phase so planted feet don't slide. Same length for the chasse step and the crouched walk.
-CoverPose.STEP_HALF = 0.45
-CoverPose.STEP_LEN = 4 * CoverPose.STEP_HALF
+-- cycle (each foot steps once) moves the body 4 * STEP_HALF studs, which CoverClient uses (stepLen)
+-- to advance the phase so planted feet don't slide. Long steps keep the legs from looking frantic.
+local STEP_HALF_TALL = 0.55 -- chasse step along a tall wall
+local STEP_HALF_LOW = 0.65 -- crouched walk behind a low wall
+
+-- step half-length and full cycle length for a given amount of low cover (0 = tall, 1 = low)
+function CoverPose.stepHalf(low: number): number
+	return STEP_HALF_TALL + (STEP_HALF_LOW - STEP_HALF_TALL) * math.clamp(low, 0, 1)
+end
+function CoverPose.stepLen(low: number): number
+	return 4 * CoverPose.stepHalf(low)
+end
 
 -- behind a low wall the head stays HEAD_BELOW studs under the wall's top
 local HEAD_BELOW = 0.25
@@ -211,7 +219,7 @@ function CoverPose.apply(char: Model, s: State)
 	local shin = char:FindFirstChild("RightLowerLeg") :: BasePart?
 	local footH = footPart and footPart.Size.Y / 2 or 0.2
 	local kneeR = shin and math.min(shin.Size.Z, shin.Size.X) / 2 or 0.3
-	local a = CoverPose.STEP_HALF
+	local a = CoverPose.stepHalf(low)
 	local bob = 0.05 * step * (1 - math.cos(2 * ph)) / 2 -- rises a touch while a foot is in the air
 
 	-- TALL WALL: hips dropped a little, turned toward the look side, upper body leaning back on the

@@ -28,8 +28,8 @@ local IS_STUDIO = RunService:IsStudio()
 local UP = Vector3.yAxis
 
 local FIND_RANGE = 4.5 -- how far (studs, from the body's centre) a wall can be to take cover
-local COVER_SPEED = 3 -- sliding speed along the wall
-local COVER_SPEED_LOW = 1.8 -- crouched behind a low wall
+local COVER_SPEED = 4.5 -- sliding speed along the wall
+local COVER_SPEED_LOW = 3.2 -- crouched behind a low wall
 local WALL_RAY_H = 1.5 -- wall rays run this high above the ground (hits low walls and tall ones)
 local MIN_LOW = 2.2 -- a wall lower than this (studs above the ground) is too low to hide behind
 local TALL_H = 4.6 -- a wall at least this high is a tall wall (stand); lower = low wall (crouch)
@@ -474,7 +474,7 @@ RunService.Stepped:Connect(function(_, dt)
 		local v = root.AssemblyLinearVelocity
 		local moving = Vector3.new(v.X, 0, v.Z).Magnitude
 		local speed = COVER_SPEED + (COVER_SPEED_LOW - COVER_SPEED) * p.low
-		p.phase = (p.phase + moving * dt / CoverPose.STEP_LEN * math.pi * 2) % (math.pi * 2)
+		p.phase = (p.phase + moving * dt / CoverPose.stepLen(p.low) * math.pi * 2) % (math.pi * 2)
 		p.step += (math.clamp(moving / speed, 0, 1) - p.step) * math.min(1, dt * 10)
 		-- how far the wall reaches on the look side, at hand height (the lead hand stays on it)
 		p.reach = nil
