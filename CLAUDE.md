@@ -30,12 +30,12 @@ Studio's own tools do 3D for free and answer with a few lines, so prefer them ov
 
 ## How to work (user's choice: this replaces the old "always delegate to subagents" rule)
 
-The user wants sessions to work the way the first city-builder session did: **the main conversation writes the game code itself**, as whole coherent modules, and tests it in Studio. Subagents are the exception, not the default.
+The user wants **the main conversation writes the game code itself**, as whole coherent modules, and tests it in Studio. Subagents are the exception, not the default.
 
 1. **Check Studio first**: `python3 tools/studio.py state` (or the MCP `list_roblox_studios` + `get_studio_state`). If the bridge is off, tell the user and stop.
 2. **Make a work copy** of the code in your scratchpad: `cp -r game <scratchpad>/src` (same layout as `game/`; `git fetch origin main` first so `game/` is current). Edit there with Read/Edit/Write. Write new features as complete ModuleScripts (one job each, `--!strict`) rather than many tiny MCP edits.
 3. **Check and push**: `python3 tools/deploy_luau.py --root <scratchpad>/src <changed files>`. It syntax-checks every file with `luau-compile` and pushes nothing if one fails. Studio must be in Edit mode (`tools/studio.py stop`).
-4. **Test it for real in a playtest**: `tools/studio.py play`, wait ~10 s, then drive the game with `tools/studio.py luau Client <file>` scripts that call the game's own remotes (create a city, place buildings, build roads...) and return numbers to check. Then take `tools/studio.py shot <png>` screenshots and Read them, read `tools/studio.py console` for errors, and `stop`. Look at every visual change; fix what looks wrong and test again.
+4. **Test it for real in a playtest**: `tools/studio.py play`, wait ~10 s, then drive the game with `tools/studio.py luau Client <file>` scripts that call the game's own remotes (e.g. start a heist, pick up loot, buy an upgrade) and return numbers to check. Then take `tools/studio.py shot <png>` screenshots and Read them, read `tools/studio.py console` for errors, and `stop`. Look at every visual change; fix what looks wrong and test again.
    - A `luau` call runs in its own VM (its own copy of ModuleScripts). To steer the running client (camera, open a panel, time of day), add Studio-only attribute hooks in the client (`if RunService:IsStudio()`) and set those attributes from the test script.
    - Keep each `luau` call under ~30 s of waiting; split long scenarios into several calls.
 5. **Save**: `tools/save_game.sh "game: <summary>"` at the end of the request (see above), and remind the user to save the place in Studio.
@@ -45,6 +45,8 @@ The user wants sessions to work the way the first city-builder session did: **th
 **Keep the user posted**: a short line before each big step (what you're building, what a test showed), and screenshots of results. Be honest about what was tested and what wasn't.
 
 ## graphify (only when it saves tokens)
+
+New game: the graph starts empty and fills on the first `tools/save_game.sh` (export from Studio). Until `graphify-out/graph.json` exists, just grep `game/` or use Studio search.
 
 `graphify-out/graph.json` maps the Luau code in `game/` and the Markdown docs (headings, links), built offline with `graphify update .` (AST only, no LLM, no images). Never run the `/graphify` LLM/semantic extraction: it costs tokens.
 

@@ -11,7 +11,7 @@ the Heistbond Game cloud environment the proxy adds the bridge key.
 Usage:
   python3 tools/export_studio.py            # first open Studio
   python3 tools/export_studio.py --list     # just list open Studios
-  python3 tools/export_studio.py --studio "NFL CARD"
+  python3 tools/export_studio.py --studio "Heistbond"
 The code graph (graphify) is rebuilt automatically, offline.
 """
 import argparse
