@@ -2,6 +2,13 @@
  "place": "HeistBond (placeId: 140006811946947)",
  "scripts": [
   {
+   "file": "ReplicatedStorage/Cover/CoverPose.luau",
+   "instance": "game.ReplicatedStorage.Cover.CoverPose",
+   "class": "ModuleScript",
+   "bytes": 10043,
+   "sha1": "cec1cfafe464f2e0dd37fbf90d6f8447e6a73b11"
+  },
+  {
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",
    "instance": "game.ReplicatedStorage.Weapons.GunAnim",
    "class": "ModuleScript",
@@ -30,6 +37,13 @@
    "sha1": "cb438c297543dba8ead42828c99c4037976a76e3"
   },
   {
+   "file": "ServerScriptService/Cover/CoverServer.server.luau",
+   "instance": "game.ServerScriptService.Cover.CoverServer",
+   "class": "Script",
+   "bytes": 1548,
+   "sha1": "db18408c7b00f09edb655355098e68c424c32cb9"
+  },
+  {
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
    "instance": "game.ServerScriptService.Weapons.WeaponServer",
    "class": "Script",
@@ -44,11 +58,18 @@
    "sha1": "6af793b820cb8000b98bf20a3610dabf5601b020"
   },
   {
+   "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.CoverClient",
+   "class": "LocalScript",
+   "bytes": 12887,
+   "sha1": "fe49f75f7a6d06c361569caa4d6dedb6bfcd34a9"
+  },
+  {
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.HeavyMovement",
    "class": "LocalScript",
-   "bytes": 14232,
-   "sha1": "a801bc08e9ced8ca48de490756d8498ba7f6054e"
+   "bytes": 14397,
+   "sha1": "c94aa2f047d4b9a7f14fd527278a88b71db7f05b"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",

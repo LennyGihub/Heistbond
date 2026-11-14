@@ -188,6 +188,11 @@ local function step(dt: number)
 		return
 	end
 	hum.AutoRotate = false
+	if char:GetAttribute("InCover") == true then
+		speed = 0 -- CoverClient moves and turns the character while it is in cover
+		strafeDir = Vector3.zero
+		return
+	end
 
 	-- what the player is asking for this frame (the control module has just set it)
 	local input = hum.MoveDirection
