@@ -1,0 +1,54 @@
+{
+ "place": "HeistBond (placeId: 140006811946947)",
+ "scripts": [
+  {
+   "file": "ReplicatedStorage/Weapons/GunAnim.luau",
+   "instance": "game.ReplicatedStorage.Weapons.GunAnim",
+   "class": "ModuleScript",
+   "bytes": 4078,
+   "sha1": "c14950c4c92dd5738b7efa66bd882864a2d0b431"
+  },
+  {
+   "file": "ReplicatedStorage/Weapons/GunPose.luau",
+   "instance": "game.ReplicatedStorage.Weapons.GunPose",
+   "class": "ModuleScript",
+   "bytes": 1996,
+   "sha1": "343a54e09104ecb3929f597ae997b528299a4c56"
+  },
+  {
+   "file": "ReplicatedStorage/Weapons/WeaponConfig.luau",
+   "instance": "game.ReplicatedStorage.Weapons.WeaponConfig",
+   "class": "ModuleScript",
+   "bytes": 1333,
+   "sha1": "ca99e33b309470a34020ef6e7ab01819dff44e98"
+  },
+  {
+   "file": "ReplicatedStorage/Weapons/WeaponFx.luau",
+   "instance": "game.ReplicatedStorage.Weapons.WeaponFx",
+   "class": "ModuleScript",
+   "bytes": 5561,
+   "sha1": "cb438c297543dba8ead42828c99c4037976a76e3"
+  },
+  {
+   "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
+   "instance": "game.ServerScriptService.Weapons.WeaponServer",
+   "class": "Script",
+   "bytes": 10286,
+   "sha1": "369ee1651380a0541f6fc4696241b93288c8b4b5"
+  },
+  {
+   "file": "StarterPack/M4A1/GunClient.client.luau",
+   "instance": "game.StarterPack.M4A1.GunClient",
+   "class": "LocalScript",
+   "bytes": 22906,
+   "sha1": "510169effff8ce994dd2eacf0688fa03d0ac027a"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.WeaponFxListener",
+   "class": "LocalScript",
+   "bytes": 2257,
+   "sha1": "0d8172985c7285cf856a974ef9f677c4fde10611"
+  }
+ ]
+}
