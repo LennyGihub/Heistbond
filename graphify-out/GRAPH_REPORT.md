@@ -1,7 +1,7 @@
 # Graph Report - Heistbond  (2026-11-14)
 
 ## Corpus Check
-- 10 files · ~9,306 words
+- 10 files · ~9,464 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
@@ -38,19 +38,19 @@
 7. `Heistbond - Roblox dev workspace` - 6 edges
 8. `buildHud()` - 5 edges
 9. `unequip()` - 5 edges
-10. `GunPose.cframe()` - 4 edges
+10. `updateHud()` - 4 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `playReload()` --calls--> `GunPose.torsoFor()`  [INFERRED]
-  game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `renderStep()` --calls--> `GunPose.anglesTo()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `renderStep()` --calls--> `GunPose.cframe()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `playReload()` --calls--> `GunPose.cframe()`  [INFERRED]
-  game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
 - `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.tracer()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `renderStep()` --calls--> `GunAnim.isReloading()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunAnim.luau
 
 ## Import Cycles
 - None detected.

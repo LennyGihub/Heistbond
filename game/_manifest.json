@@ -47,8 +47,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.HeavyMovement",
    "class": "LocalScript",
-   "bytes": 6583,
-   "sha1": "4d75277444092072a0523851c5c2dd22f59cddcf"
+   "bytes": 7972,
+   "sha1": "22bdbfc994e40d47607f21da4f2662f779ff32fa"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",

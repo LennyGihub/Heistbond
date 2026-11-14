@@ -13,9 +13,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
-local TURN_RATE = math.rad(220) -- turning speed while walking (radians per second)
-local TURN_RATE_AIM = math.rad(360)
-local TURN_RATE_IDLE = math.rad(260) -- turning on the spot
+local TURN_RATE = math.rad(320) -- turning speed while walking (radians per second)
+local TURN_RATE_AIM = math.rad(480)
+local TURN_RATE_IDLE = math.rad(360) -- turning on the spot
 local ACCEL = 20 -- studs/s^2 to build up speed
 local DECEL = 32 -- studs/s^2 to slow down
 local SHARP_TURN_SPEED = 0.35 -- speed kept while turning more than ~90 degrees
@@ -28,8 +28,15 @@ local AIM_SPEED = 6 -- while aiming
 -- the stance foot's backward travel), so the playback speed can match the real ground speed exactly
 local WALK_ANIM = "rbxassetid://2510202577"
 local RUN_ANIM = "rbxassetid://2510198475"
-local WALK_STRIDE = 7.35 -- studs/s at 1x
+local WALK_STRIDE = 6.3 -- studs/s at 1x (tuned in Studio for the least foot slip)
 local RUN_STRIDE = 6.5
+-- custom run (replaces the Rthro run when present): ReplicatedStorage.Animations.Run (Animation with the
+-- published id) - or, in Studio playtests only, the unpublished clip ReplicatedStorage.Animations.RunClip.
+-- Its ground speed at 1x is stored as the attribute Stride on whichever one is used.
+local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local IS_STUDIO = RunService:IsStudio()
+local runStride = RUN_STRIDE
 local RUN_BLEND_FROM, RUN_BLEND_TO = 11, 15 -- ground speeds where walk blends into run
 
 local speed = 0 -- current ground speed (studs/s)
@@ -53,6 +60,17 @@ local function useRthro(char: Model)
 	end
 	if r then
 		r.AnimationId = RUN_ANIM
+		runStride = RUN_STRIDE
+		local anims = ReplicatedStorage:FindFirstChild("Animations")
+		local custom = anims and anims:FindFirstChild("Run")
+		local clip = anims and anims:FindFirstChild("RunClip")
+		if custom and custom:IsA("Animation") and custom.AnimationId ~= "" then
+			r.AnimationId = custom.AnimationId
+			runStride = (custom:GetAttribute("Stride") :: number?) or RUN_STRIDE
+		elseif IS_STUDIO and clip and clip:IsA("KeyframeSequence") then
+			r.AnimationId = KeyframeSequenceProvider:RegisterKeyframeSequence(clip)
+			runStride = (clip:GetAttribute("Stride") :: number?) or RUN_STRIDE
+		end
 	end
 end
 
@@ -147,7 +165,13 @@ local function step(dt: number)
 		local runW = math.clamp((ground - RUN_BLEND_FROM) / (RUN_BLEND_TO - RUN_BLEND_FROM), 0, 1)
 		for _, t in walkTracks(hum) do
 			local isRun = string.find(string.lower(t.Name), "run") ~= nil
-			local stride = isRun and RUN_STRIDE or WALK_STRIDE
+			local stride = isRun and runStride or WALK_STRIDE
+			if IS_STUDIO then -- live tuning in playtests: player attributes WalkStride / RunStride
+				local o = player:GetAttribute(isRun and "RunStride" or "WalkStride")
+				if typeof(o) == "number" and o > 0 then
+					stride = o
+				end
+			end
 			t:AdjustSpeed(sign * ground / stride)
 			t:AdjustWeight(math.max(isRun and runW or (1 - runW), 0.001))
 		end
