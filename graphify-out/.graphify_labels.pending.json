@@ -16,5 +16,7 @@
   "14": "spawnOne",
   "15": "AimAssist.client.luau",
   "16": "KillFeedback.client.luau",
-  "17": "GuardService.server.luau"
+  "17": "GuardService.server.luau",
+  "18": "AtlasBankBuilder.luau",
+  "19": "BankDoors.server.luau"
 }

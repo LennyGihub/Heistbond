@@ -37,6 +37,13 @@
    "sha1": "cb438c297543dba8ead42828c99c4037976a76e3"
   },
   {
+   "file": "ServerScriptService/Bank/BankDoors.server.luau",
+   "instance": "game.ServerScriptService.Bank.BankDoors",
+   "class": "Script",
+   "bytes": 2482,
+   "sha1": "2937d587d531095b395e15c79af1d29155d467a7"
+  },
+  {
    "file": "ServerScriptService/Cover/CoverServer.server.luau",
    "instance": "game.ServerScriptService.Cover.CoverServer",
    "class": "Script",
@@ -70,6 +77,13 @@
    "class": "Script",
    "bytes": 11508,
    "sha1": "17cc7c131b899088266b90f7fc9ec5d1d973f564"
+  },
+  {
+   "file": "ServerStorage/Builders/AtlasBankBuilder.luau",
+   "instance": "game.ServerStorage.Builders.AtlasBankBuilder",
+   "class": "ModuleScript",
+   "bytes": 84156,
+   "sha1": "c1825e49748bf6d6b5b9d9a401264667eaa972d9"
   },
   {
    "file": "StarterPack/M4A1/GunClient.client.luau",

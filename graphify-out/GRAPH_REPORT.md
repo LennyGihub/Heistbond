@@ -1,17 +1,17 @@
 # Graph Report - Heistbond  (2026-11-14)
 
 ## Corpus Check
-- 20 files · ~30,249 words
+- 22 files · ~43,464 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
 ## Summary
-- 171 nodes · 271 edges · 18 communities (12 shown, 6 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.85)
+- 205 nodes · 361 edges · 20 communities (13 shown, 7 thin omitted)
+- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `14b42218`
+- Built from commit: `4abc63c1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,18 +30,19 @@
 - spawnOne
 - AimAssist.client.luau
 - GuardService.server.luau
+- AtlasBankBuilder.luau
 
 ## God Nodes (most connected - your core abstractions)
-1. `fireOnce()` - 11 edges
+1. `P()` - 17 edges
 2. `fireOnce()` - 11 edges
-3. `spawnOne()` - 8 edges
-4. `GunAnim.stop()` - 7 edges
-5. `playReload()` - 7 edges
-6. `findWall()` - 7 edges
-7. `brain()` - 6 edges
-8. `takeHold()` - 6 edges
-9. `GunAnim.step()` - 6 edges
-10. `Heistbond - Roblox dev workspace` - 6 edges
+3. `fireOnce()` - 11 edges
+4. `folder()` - 10 edges
+5. `consult()` - 9 edges
+6. `spawnOne()` - 8 edges
+7. `monitor()` - 7 edges
+8. `GunAnim.stop()` - 7 edges
+9. `playReload()` - 7 edges
+10. `findWall()` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
@@ -52,13 +53,13 @@
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 - `fireOnce()` --calls--> `Fx.tracer()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `renderStep()` --calls--> `GunPose.torsoFor()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
+- `unequip()` --calls--> `GunAnim.stop()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunAnim.luau
 
 ## Import Cycles
 - None detected.
 
-## Communities (18 total, 6 thin omitted)
+## Communities (20 total, 7 thin omitted)
 
 ### Community 0 - "GunClient.client.luau"
 Cohesion: 0.13
@@ -85,7 +86,7 @@ Cohesion: 0.32
 Nodes (4): angleDiff(), loadSneak(), loadTrack(), step()
 
 ### Community 9 - "CoverClient.client.luau"
-Cohesion: 0.21
+Cohesion: 0.23
 Nodes (8): edgeAlong(), findWall(), flat(), groundY(), isWall(), rayOrigin(), rayParams(), wallTop()
 
 ### Community 11 - "CoverPose.luau"
@@ -98,33 +99,37 @@ Nodes (23): aimFar(), aimTarget(), bar(), buildHud(), cloneLimb(), corner(), des
 
 ### Community 14 - "spawnOne"
 Cohesion: 0.27
-Nodes (9): loadTrack(), NPCCommon.animate(), NPCCommon.build(), NPCCommon.groundAt(), NPCCommon.onDeath(), describe(), randomPoint(), spawnOne() (+1 more)
+Nodes (10): randomInZone(), loadTrack(), NPCCommon.animate(), NPCCommon.build(), NPCCommon.groundAt(), NPCCommon.onDeath(), describe(), randomPoint() (+2 more)
 
 ### Community 15 - "AimAssist.client.luau"
 Cohesion: 0.83
 Nodes (3): acquire(), headOf(), visible()
 
 ### Community 17 - "GuardService.server.luau"
-Cohesion: 0.15
-Nodes (15): GunPose.anglesTo(), GunPose.cframe(), GunPose.handleAt(), GunPose.handleFrom(), GunPose.pivot(), GunPose.torsoFor(), arm(), brain() (+7 more)
+Cohesion: 0.14
+Nodes (14): GunPose.anglesTo(), GunPose.cframe(), GunPose.handleAt(), GunPose.handleFrom(), GunPose.pivot(), GunPose.torsoFor(), arm(), brain() (+6 more)
+
+### Community 18 - "AtlasBankBuilder.luau"
+Cohesion: 0.17
+Nodes (32): at(), ball(), boxes(), cabinet(), camera(), cashStack(), ceilingLight(), consult() (+24 more)
 
 ## Knowledge Gaps
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GunPose.cframe()` connect `GuardService.server.luau` to `README.md`, `GunAnim.luau`?**
-  _High betweenness centrality (0.233) - this node is a cross-community bridge._
+  _High betweenness centrality (0.161) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `fireOnce()` (e.g. with `Fx.impact()` and `Fx.muzzle()`) actually correct?**
   _`fireOnce()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Should `GunClient.client.luau` be split into smaller, more focused modules?**
   _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
-- **Why does `playReload()` connect `GunAnim.luau` to `GuardService.server.luau`, `README.md`?**
-  _High betweenness centrality (0.144) - this node is a cross-community bridge._
+- **Why does `brain()` connect `GuardService.server.luau` to `spawnOne`?**
+  _High betweenness centrality (0.115) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `fireOnce()` (e.g. with `Fx.impact()` and `Fx.muzzle()`) actually correct?**
   _`fireOnce()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Sniper/GunClient.client.luau` be split into smaller, more focused modules?**
   _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
-- **Are the 4 inferred relationships involving `spawnOne()` (e.g. with `NPCCommon.animate()` and `NPCCommon.build()`) actually correct?**
-  _`spawnOne()` has 4 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `playReload()` connect `GunAnim.luau` to `GuardService.server.luau`, `README.md`?**
+  _High betweenness centrality (0.100) - this node is a cross-community bridge._
