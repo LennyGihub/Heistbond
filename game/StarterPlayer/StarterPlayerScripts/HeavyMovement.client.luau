@@ -228,6 +228,10 @@ local function step(dt: number)
 			sneakTrack:AdjustSpeed(sign * ground / sneakStride)
 		end
 		for _, t in walkTracks(hum) do
+			-- above the avatar's own Core "mood" animation, which would otherwise half-hold the arms
+			if t.Priority ~= Enum.AnimationPriority.Movement then
+				t.Priority = Enum.AnimationPriority.Movement
+			end
 			local isRun = string.find(string.lower(t.Name), "run") ~= nil
 			local stride = isRun and runStride or WALK_STRIDE
 			if IS_STUDIO then -- live tuning in playtests: player attributes WalkStride / RunStride
