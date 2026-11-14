@@ -32,11 +32,11 @@ local AIM_DISTANCE = 6.5 -- studs from the character while aiming
 local FACE_AFTER_SHOT = 0.6 -- seconds the character keeps facing the camera after hip fire
 local BASE_FOV = 70
 -- first person: where the gun's handle sits relative to the camera
-local FP_HIP = CFrame.new(0.16, -0.62, -0.36) * CFrame.Angles(0, math.rad(2), 0) -- close: nothing behind the sight is in view
+local FP_HIP = CFrame.new(0.16, -0.75, -0.56) * CFrame.Angles(0, math.rad(2), 0) -- close: nothing behind the sight is in view
 local FP_FOV = 55 -- narrower first-person view: more hands and gun, less arm
 local FP_AIM_FOV = 38
 local RECOIL_RADIUS = math.rad(2.2) -- recoil stays inside this circle around where you aim
-local EYE_RELIEF = 0.55 -- studs from the eye to the sight's reticle while aiming in first person
+local EYE_RELIEF = 0.7 -- studs from the eye to the sight's reticle while aiming in first person
 local fpAim = CFrame.new(0.022, -0.615, -1.05) -- recomputed from the gun's Sight attachment on equip
 -- the avatar's own arms are far too chunky this close to the camera: first person draws slim local arms
 local FP_ELBOW = { Right = Vector3.new(1.0, -1.5, -0.4), Left = Vector3.new(-1.1, -1.6, -1.2) } -- camera space, low and wide
