@@ -107,8 +107,17 @@ local function step(dt: number)
 	local aimYaw = char:GetAttribute("AimYaw")
 	local targetYaw = cur
 	local rate = TURN_RATE
-	local sprinting = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and typeof(aimYaw) ~= "number"
-	local maxSpeed = if typeof(aimYaw) == "number" then AIM_SPEED elseif sprinting then SPRINT_SPEED else WALK_SPEED
+	-- AimYaw = which way to face (aiming, or first person); Aiming = actually aiming (slower).
+	-- Sprint: Left Shift, not aiming, not holding the trigger (BlockSprint), and when the facing is
+	-- locked (first person) only while moving mostly forward.
+	local aiming = char:GetAttribute("Aiming") == true
+	local sprinting = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+		and not aiming
+		and char:GetAttribute("BlockSprint") ~= true
+	if sprinting and typeof(aimYaw) == "number" and mag > 0.01 then
+		sprinting = wantDir:Dot(Vector3.new(-math.sin(aimYaw), 0, -math.cos(aimYaw))) > 0.7
+	end
+	local maxSpeed = if aiming then AIM_SPEED elseif sprinting then SPRINT_SPEED else WALK_SPEED
 	hum.WalkSpeed = SPRINT_SPEED -- the cap; the actual speed is set through Move's magnitude below
 	local targetSpeed = maxSpeed * mag
 	local moveDir: Vector3
@@ -150,6 +159,7 @@ local function step(dt: number)
 	if moveDir.Magnitude < 0.01 then
 		speed = math.max(0, speed - DECEL * dt)
 	end
+	char:SetAttribute("Sprinting", sprinting and speed > WALK_SPEED + 1)
 	local ws = math.max(hum.WalkSpeed, 0.01)
 	hum:Move(moveDir * math.clamp(speed / ws, 0, 1), false)
 

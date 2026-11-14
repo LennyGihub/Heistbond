@@ -68,6 +68,9 @@ local kick = Vector2.zero -- gun recoil (back, pitch up), springs back to zero
 local sway = Vector2.zero -- first-person weapon sway from camera turning
 local lastLook: Vector3? = nil
 local bobT = 0
+local sprintAlpha = 0 -- first person: 0 = normal, 1 = sprint pose (gun down and across)
+local FP_SPRINT = CFrame.new(-0.1, -0.08, 0.04) * CFrame.Angles(math.rad(-12), math.rad(30), math.rad(25))
+local SPRINT_FOV = 8 -- extra field of view while sprinting in first person
 local firstPersonToggle = false
 local wasFirstPerson = false
 local viewArms: Model? = nil
@@ -294,7 +297,7 @@ local function startFiring()
 		local interval = 60 / cfg.RPM
 		while triggerDown and equipped do
 			local now = os.clock()
-			if not reloading and now - lastShot >= interval then
+			if not reloading and sprintAlpha < 0.35 and now - lastShot >= interval then
 				lastShot = now
 				fireOnce()
 			end
@@ -493,7 +496,11 @@ local function renderStep(dt: number)
 
 	local alpha = math.min(1, dt * 12)
 	aimAlpha += ((aiming and 1 or 0) - aimAlpha) * math.min(1, dt * 14)
-	local fov = if firstPerson then (aiming and FP_AIM_FOV or FP_FOV) else (aiming and cfg.AimFov or BASE_FOV)
+	char:SetAttribute("Aiming", aiming)
+	char:SetAttribute("BlockSprint", triggerDown)
+	local sprinting = char:GetAttribute("Sprinting") == true and not aiming
+	sprintAlpha += ((sprinting and 1 or 0) - sprintAlpha) * math.min(1, dt * (sprinting and 7 or 12))
+	local fov = if firstPerson then (aiming and FP_AIM_FOV or FP_FOV + SPRINT_FOV * sprintAlpha) else (aiming and cfg.AimFov or BASE_FOV)
 	cam.FieldOfView += (fov - cam.FieldOfView) * alpha
 
 	-- recoil: the aim is pushed to an offset that springs back to where you were aiming
@@ -548,7 +555,11 @@ local function renderStep(dt: number)
 			* CFrame.Angles(0, 0, math.sin(bobT) * 0.02 * amp)
 		local swayCF = CFrame.Angles(sway.X, sway.Y, sway.Y * 0.6)
 		local lower = GunAnim.isReloading(tool) and CFrame.new(0, -0.12, 0.1) or CFrame.identity
-		local vm = FP_HIP:Lerp(fpAim, aimAlpha) * bobCF * swayCF * lower * CFrame.new(0, 0, kick.X * 1.4) * CFrame.Angles(kick.Y * 0.8, 0, 0)
+		-- sprinting: gun swings down and across the body, with a bigger, faster bounce
+		local sprintBob = CFrame.new(math.sin(bobT) * 0.05 * sprintAlpha, -math.abs(math.cos(bobT)) * 0.06 * sprintAlpha, 0)
+			* CFrame.Angles(0, 0, math.sin(bobT) * 0.05 * sprintAlpha)
+		local sprintCF = CFrame.identity:Lerp(FP_SPRINT, sprintAlpha) * sprintBob
+		local vm = FP_HIP:Lerp(fpAim, aimAlpha) * sprintCF * bobCF * swayCF * lower * CFrame.new(0, 0, kick.X * 1.4) * CFrame.Angles(kick.Y * 0.8, 0, 0)
 		local handleCF = cam.CFrame * vm * reloadCF
 		if weld and torso then
 			weld.C0 = torso.CFrame:ToObjectSpace(handleCF)
@@ -660,6 +671,7 @@ local function unequip()
 	destroyViewArms()
 	wasFirstPerson, lastLook = false, nil
 	kick, sway = Vector2.zero, Vector2.zero
+	sprintAlpha = 0
 	recoilTarget, recoilCur, recoilApplied = Vector2.zero, Vector2.zero, Vector2.zero
 	poseYaw, posePitch, holdAlpha = 0, 0, 0
 	pcall(function()
@@ -681,6 +693,8 @@ local function unequip()
 		local c = humanoid.Parent
 		if c then
 			c:SetAttribute("AimYaw", nil)
+			c:SetAttribute("Aiming", nil)
+			c:SetAttribute("BlockSprint", nil)
 		end
 	end
 	if gui then
