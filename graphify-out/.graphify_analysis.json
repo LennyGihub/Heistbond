@@ -1,0 +1,216 @@
+{
+  "communities": {
+    "0": [
+      "game_starterpack_m4a1_gunclient_client",
+      "game_starterpack_m4a1_gunclient_client_bar",
+      "game_starterpack_m4a1_gunclient_client_buildhud",
+      "game_starterpack_m4a1_gunclient_client_corner",
+      "game_starterpack_m4a1_gunclient_client_destroyviewarms",
+      "game_starterpack_m4a1_gunclient_client_label",
+      "game_starterpack_m4a1_gunclient_client_onaimaction",
+      "game_starterpack_m4a1_gunclient_client_onreloadaction",
+      "game_starterpack_m4a1_gunclient_client_onviewaction",
+      "game_starterpack_m4a1_gunclient_client_setaiming",
+      "game_starterpack_m4a1_gunclient_client_startfiring",
+      "game_starterpack_m4a1_gunclient_client_toggleview",
+      "game_starterpack_m4a1_gunclient_client_unequip",
+      "game_starterpack_m4a1_gunclient_client_updatehud",
+      "game_starterpack_m4a1_gunclient_client_updateviewarms",
+      "game_starterpack_m4a1_gunclient_client_vmpart"
+    ],
+    "1": [
+      "game_replicatedstorage_weapons_weaponfx",
+      "game_replicatedstorage_weapons_weaponfx_emitterfor",
+      "game_replicatedstorage_weapons_weaponfx_folder",
+      "game_replicatedstorage_weapons_weaponfx_fx_impact",
+      "game_replicatedstorage_weapons_weaponfx_fx_muzzle",
+      "game_replicatedstorage_weapons_weaponfx_fx_sound",
+      "game_replicatedstorage_weapons_weaponfx_fx_tracer",
+      "game_replicatedstorage_weapons_weaponfx_playsound",
+      "game_starterpack_m4a1_gunclient_client_aimtarget",
+      "game_starterpack_m4a1_gunclient_client_fireonce",
+      "game_starterpack_m4a1_gunclient_client_flashhitmarker",
+      "game_starterpack_m4a1_gunclient_client_rayparams",
+      "script_parent_weaponconfig"
+    ],
+    "2": [
+      "game_serverscriptservice_weapons_weaponserver_server",
+      "game_serverscriptservice_weapons_weaponserver_server_armik",
+      "game_serverscriptservice_weapons_weaponserver_server_equippedweapon",
+      "game_serverscriptservice_weapons_weaponserver_server_isfinitevector",
+      "game_serverscriptservice_weapons_weaponserver_server_oncharacter",
+      "game_serverscriptservice_weapons_weaponserver_server_onplayer",
+      "game_serverscriptservice_weapons_weaponserver_server_others",
+      "game_serverscriptservice_weapons_weaponserver_server_releasehold",
+      "game_serverscriptservice_weapons_weaponserver_server_remote",
+      "game_serverscriptservice_weapons_weaponserver_server_takehold",
+      "game_starterplayer_starterplayerscripts_weaponfxlistener_client",
+      "weapons_waitforchild"
+    ],
+    "3": [
+      "game_replicatedstorage_weapons_gunanim",
+      "game_replicatedstorage_weapons_gunanim_gunanim_isreloading",
+      "game_replicatedstorage_weapons_gunanim_gunanim_remember",
+      "game_replicatedstorage_weapons_gunanim_gunanim_startreload",
+      "game_replicatedstorage_weapons_gunanim_gunanim_step",
+      "game_replicatedstorage_weapons_gunanim_gunanim_stop",
+      "game_replicatedstorage_weapons_gunanim_parts",
+      "game_replicatedstorage_weapons_gunanim_restof",
+      "game_replicatedstorage_weapons_gunanim_smooth",
+      "game_starterplayer_starterplayerscripts_weaponfxlistener_client_playreload"
+    ],
+    "4": [
+      "claude",
+      "claude_3d_models_free_low_token",
+      "claude_graphify_only_when_it_saves_tokens",
+      "claude_heistbond_roblox_dev_workspace",
+      "claude_how_to_work_user_s_choice_this_replaces_the_old_always_delegate_to_subagents_rule",
+      "claude_images_icons_ui_art_no_emoji",
+      "claude_saving_the_game_s_code_user_s_standing_instruction"
+    ],
+    "5": [
+      "game_replicatedstorage_weapons_gunpose",
+      "game_replicatedstorage_weapons_gunpose_gunpose_anglesto",
+      "game_replicatedstorage_weapons_gunpose_gunpose_cframe",
+      "game_replicatedstorage_weapons_gunpose_gunpose_pivot",
+      "game_replicatedstorage_weapons_gunpose_gunpose_torsofor",
+      "game_starterpack_m4a1_gunclient_client_camrayparams",
+      "game_starterpack_m4a1_gunclient_client_renderstep"
+    ],
+    "6": [
+      "mcp",
+      "mcp_mcp_server_roblox_studio"
+    ],
+    "7": [
+      "readme",
+      "readme_heistbond"
+    ],
+    "8": [
+      "game_replicatedstorage_weapons_weaponconfig"
+    ]
+  },
+  "cohesion": {
+    "0": 0.21666666666666667,
+    "1": 0.24358974358974358,
+    "2": 0.24242424242424243,
+    "3": 0.4222222222222222,
+    "4": 0.2857142857142857,
+    "5": 0.47619047619047616,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0
+  },
+  "gods": [
+    {
+      "id": "game_starterpack_m4a1_gunclient_client_renderstep",
+      "label": "renderStep()",
+      "degree": 11
+    },
+    {
+      "id": "game_starterpack_m4a1_gunclient_client_fireonce",
+      "label": "fireOnce()",
+      "degree": 10
+    },
+    {
+      "id": "game_starterplayer_starterplayerscripts_weaponfxlistener_client_playreload",
+      "label": "playReload()",
+      "degree": 7
+    },
+    {
+      "id": "claude_heistbond_roblox_dev_workspace",
+      "label": "Heistbond - Roblox dev workspace",
+      "degree": 6
+    },
+    {
+      "id": "game_replicatedstorage_weapons_gunanim_gunanim_step",
+      "label": "GunAnim.step()",
+      "degree": 6
+    },
+    {
+      "id": "game_serverscriptservice_weapons_weaponserver_server_takehold",
+      "label": "takeHold()",
+      "degree": 6
+    },
+    {
+      "id": "game_replicatedstorage_weapons_gunanim_gunanim_stop",
+      "label": "GunAnim.stop()",
+      "degree": 5
+    },
+    {
+      "id": "game_replicatedstorage_weapons_gunpose_gunpose_cframe",
+      "label": "GunPose.cframe()",
+      "degree": 5
+    },
+    {
+      "id": "game_starterpack_m4a1_gunclient_client_buildhud",
+      "label": "buildHud()",
+      "degree": 5
+    },
+    {
+      "id": "game_starterpack_m4a1_gunclient_client_unequip",
+      "label": "unequip()",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "renderStep()",
+      "target": "GunAnim.isReloading()",
+      "source_files": [
+        "game/StarterPack/M4A1/GunClient.client.luau",
+        "game/ReplicatedStorage/Weapons/GunAnim.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "unequip()",
+      "target": "GunAnim.stop()",
+      "source_files": [
+        "game/StarterPack/M4A1/GunClient.client.luau",
+        "game/ReplicatedStorage/Weapons/GunAnim.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "renderStep()",
+      "target": "GunAnim.step()",
+      "source_files": [
+        "game/StarterPack/M4A1/GunClient.client.luau",
+        "game/ReplicatedStorage/Weapons/GunAnim.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "takeHold()",
+      "target": "GunPose.torsoFor()",
+      "source_files": [
+        "game/ServerScriptService/Weapons/WeaponServer.server.luau",
+        "game/ReplicatedStorage/Weapons/GunPose.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "playReload()",
+      "target": "GunPose.torsoFor()",
+      "source_files": [
+        "game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",
+        "game/ReplicatedStorage/Weapons/GunPose.luau"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}
