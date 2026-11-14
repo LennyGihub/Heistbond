@@ -105,7 +105,8 @@ local function loadSneak(char: Model)
 	local a = Instance.new("Animation")
 	a.AnimationId = id
 	local track = animator:LoadAnimation(a)
-	track.Priority = Enum.AnimationPriority.Movement
+	-- above the walk/run (Movement) so sneaking fully replaces the walk instead of mixing with it
+	track.Priority = Enum.AnimationPriority.Action
 	track.Looped = true
 	sneakTrack = track
 end
