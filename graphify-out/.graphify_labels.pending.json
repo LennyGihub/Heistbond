@@ -13,7 +13,8 @@
   "11": "CoverPose.luau",
   "12": "CoverServer.server.luau",
   "13": "GunPose.luau",
-  "14": "NPCService.server.luau",
+  "14": "spawnOne",
   "15": "AimAssist.client.luau",
-  "16": "KillFeedback.client.luau"
+  "16": "KillFeedback.client.luau",
+  "17": "GuardService.server.luau"
 }

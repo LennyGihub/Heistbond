@@ -44,11 +44,25 @@
    "sha1": "ef497f1a3001aa9cb7453309cf76d704c1996d03"
   },
   {
+   "file": "ServerScriptService/NPC/GuardService.server.luau",
+   "instance": "game.ServerScriptService.NPC.GuardService",
+   "class": "Script",
+   "bytes": 14132,
+   "sha1": "c969e5ddf739ae6dd74adf4db20eb277e7128636"
+  },
+  {
+   "file": "ServerScriptService/NPC/NPCCommon.luau",
+   "instance": "game.ServerScriptService.NPC.NPCCommon",
+   "class": "ModuleScript",
+   "bytes": 4009,
+   "sha1": "16f728e7e85f1c114a1a9fbb46c682c73311c819"
+  },
+  {
    "file": "ServerScriptService/NPC/NPCService.server.luau",
    "instance": "game.ServerScriptService.NPC.NPCService",
    "class": "Script",
-   "bytes": 7504,
-   "sha1": "5eef47b82d7d879fee99e77c73bacfdc024ef386"
+   "bytes": 4508,
+   "sha1": "7700ddf34a97e744768cd147103846eadd6783dd"
   },
   {
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
@@ -96,8 +110,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/KillFeedback.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.KillFeedback",
    "class": "LocalScript",
-   "bytes": 1320,
-   "sha1": "2572462041ce937a9d230b8dc273c8c9b57814c5"
+   "bytes": 2376,
+   "sha1": "17efdbb4c65345fcc550e88630c169bb043db864"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",

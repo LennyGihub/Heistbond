@@ -1,24 +1,17 @@
 --!strict
--- Civilian NPCs that wander around the map.
+-- Civilian NPCs that wander around the map (security guards: GuardService).
 --  * dressed as ordinary civilians: a random mix of free Roblox-made shirts, jeans and short hair, and
 --    a random skin tone (HumanoidDescription)
---  * walk with the same Rthro walk as players, slower (WALK_SPEED); the walk's playback speed follows
---    their real ground speed so the feet don't slide. Idle animation when they stop.
+--  * walk with the players' Rthro walk, slower (NPCCommon)
 --  * wander between random points (pathfinding, straight line if no path), pausing in between
---  * tagged "NPC" (CollectionService) in workspace.NPCs; the guns' damage kills them like players.
---    Dead ones are removed after a few seconds and a new one comes in.
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local CollectionService = game:GetService("CollectionService")
+--  * the guns' damage kills them like players; dead ones are removed after a few seconds and a new one
+--    comes in.
 local PathfindingService = game:GetService("PathfindingService")
+local NPCCommon = require(script.Parent:WaitForChild("NPCCommon"))
 
-local COUNT = 6 -- civilians alive at once
+local COUNT = 4 -- civilians alive at once
 local CENTER = Vector3.new(0, 0, 0) -- they wander within RADIUS studs of here
 local RADIUS = 55
-local WALK_SPEED = 4.5 -- players walk at 8
-local WALK_ANIM = "rbxassetid://2510202577" -- Rthro walk (the players' walk)
-local WALK_STRIDE = 6.3 -- studs/s it covers at 1x playback (same value as HeavyMovement)
-local IDLE_ANIM = "rbxassetid://507766388" -- default R15 idle
 local PAUSE = NumberRange.new(1.5, 5) -- seconds standing still between walks
 local REMOVE_AFTER = 5 -- seconds a dead civilian stays
 local RESPAWN_AFTER = 6 -- seconds before a replacement walks in
@@ -58,9 +51,6 @@ local SKINS = {
 }
 
 local rng = Random.new()
-local folder = workspace:FindFirstChild("NPCs") or Instance.new("Folder")
-folder.Name = "NPCs"
-folder.Parent = workspace
 
 local function pick<T>(list: { T }): T
 	return list[rng:NextInteger(1, #list)]
@@ -81,26 +71,6 @@ local function randomPoint(): Vector3
 	local a = rng:NextNumber() * math.pi * 2
 	local r = math.sqrt(rng:NextNumber()) * RADIUS
 	return CENTER + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
-end
-
--- ground height below a point (nil = nothing there)
-local function groundAt(p: Vector3, ignore: { Instance }): Vector3?
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = ignore
-	local hit = workspace:Raycast(p + Vector3.new(0, 60, 0), Vector3.new(0, -200, 0), params)
-	return hit and hit.Position or nil
-end
-
-local function loadTrack(hum: Humanoid, id: string, priority: Enum.AnimationPriority): AnimationTrack
-	local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator")
-	animator.Parent = hum
-	local a = Instance.new("Animation")
-	a.AnimationId = id
-	local t = (animator :: Animator):LoadAnimation(a)
-	t.Priority = priority
-	t.Looped = true
-	return t
 end
 
 -- walk to `goal`: along a path if one is found, else straight. Returns when there or stuck.
@@ -140,78 +110,27 @@ local function walkTo(hum: Humanoid, root: BasePart, goal: Vector3)
 	end
 end
 
-local spawnOne: () -> ()
-
-local function live(npc: Model, hum: Humanoid, root: BasePart)
-	local walk = loadTrack(hum, WALK_ANIM, Enum.AnimationPriority.Movement)
-	local idle = loadTrack(hum, IDLE_ANIM, Enum.AnimationPriority.Idle)
-	idle:Play(0.3)
-	-- feet match the ground: walk playback speed from the real ground speed
-	local animConn = RunService.Heartbeat:Connect(function()
-		if hum.Health <= 0 then
-			return
-		end
-		local v = root.AssemblyLinearVelocity
-		local ground = Vector3.new(v.X, 0, v.Z).Magnitude
-		if ground > 0.4 then
-			if not walk.IsPlaying then
-				walk:Play(0.25)
-			end
-			walk:AdjustSpeed(ground / WALK_STRIDE)
-		elseif walk.IsPlaying then
-			walk:Stop(0.3)
-		end
-	end)
-	hum.Died:Connect(function()
-		animConn:Disconnect()
-		walk:Stop(0.1)
-		idle:Stop(0.1)
-		task.delay(REMOVE_AFTER, function()
-			npc:Destroy()
-		end)
-		task.delay(RESPAWN_AFTER, spawnOne)
-	end)
-	task.spawn(function()
-		while hum.Health > 0 and npc.Parent do
-			task.wait(rng:NextNumber(PAUSE.Min, PAUSE.Max))
-			if hum.Health <= 0 or not npc.Parent then
-				break
-			end
-			local goal = groundAt(randomPoint(), { folder })
-			if goal then
-				walkTo(hum, root, goal)
-			end
-		end
-	end)
-end
-
-spawnOne = function()
-	local ok, npc = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(describe(), Enum.HumanoidRigType.R15)
-	end)
-	if not ok or not npc then
-		warn("[NPCService] could not build a civilian:", npc)
+local function spawnOne()
+	local spot = NPCCommon.groundAt(randomPoint()) or CENTER
+	local model, hum, root = NPCCommon.build(describe(), "Civilian", spot, rng:NextNumber() * math.pi * 2)
+	if not model or not hum or not root then
 		return
 	end
-	local model = npc :: Model
-	model.Name = "Civilian"
-	local hum = model:FindFirstChildOfClass("Humanoid") :: Humanoid
-	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
-	-- players' own animation script isn't needed: animations are played here, on the server
-	local animate = model:FindFirstChild("Animate")
-	if animate then
-		animate:Destroy()
-	end
-	hum.WalkSpeed = WALK_SPEED
-	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	local spot = groundAt(randomPoint(), { folder }) or CENTER
-	model:PivotTo(CFrame.new(spot + Vector3.new(0, hum.HipHeight + root.Size.Y / 2 + 0.1, 0)) * CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0))
-	CollectionService:AddTag(model, "NPC")
-	model.Parent = folder
-	pcall(function()
-		root:SetNetworkOwner(nil) -- the server moves them: smooth for everyone
+	local m, h, r = model :: Model, hum :: Humanoid, root :: BasePart
+	NPCCommon.animate(h, r)
+	NPCCommon.onDeath(m, h, REMOVE_AFTER, RESPAWN_AFTER, spawnOne)
+	task.spawn(function()
+		while h.Health > 0 and m.Parent do
+			task.wait(rng:NextNumber(PAUSE.Min, PAUSE.Max))
+			if h.Health <= 0 or not m.Parent then
+				break
+			end
+			local goal = NPCCommon.groundAt(randomPoint())
+			if goal then
+				walkTo(h, r, goal)
+			end
+		end
 	end)
-	live(model, hum, root)
 end
 
 for _ = 1, COUNT do

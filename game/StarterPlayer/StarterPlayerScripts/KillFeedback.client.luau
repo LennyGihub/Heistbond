@@ -1,6 +1,8 @@
 --!strict
--- Kill confirmation: WeaponServer fires WeaponRemotes.Kill to the shooter when a shot kills someone;
--- a short white flash covers the screen.
+-- Hit feedback on screen:
+--  * kill confirmation: WeaponServer fires WeaponRemotes.Kill to the shooter when a shot kills someone;
+--    a short white flash covers the screen
+--  * getting hit: whenever your health drops, a short red flash (stronger for bigger hits)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -37,3 +39,39 @@ KillRemote.OnClientEvent:Connect(function()
 	tween = t
 	t:Play()
 end)
+
+-- getting hit: red flash
+local hurt = Instance.new("Frame")
+hurt.Name = "Hurt"
+hurt.Size = UDim2.fromScale(1, 1)
+hurt.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+hurt.BorderSizePixel = 0
+hurt.BackgroundTransparency = 1
+hurt.Parent = gui
+local hurtTween: Tween? = nil
+
+local function watch(char: Model)
+	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not hum then
+		return
+	end
+	local last = hum.Health
+	hum.HealthChanged:Connect(function(h)
+		local lost = last - h
+		last = h
+		if lost <= 0 then
+			return
+		end
+		if hurtTween then
+			hurtTween:Cancel()
+		end
+		hurt.BackgroundTransparency = math.clamp(0.85 - lost / 60, 0.55, 0.85)
+		local t = TweenService:Create(hurt, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
+		hurtTween = t
+		t:Play()
+	end)
+end
+player.CharacterAdded:Connect(watch)
+if player.Character then
+	task.spawn(watch, player.Character)
+end
