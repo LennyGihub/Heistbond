@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "Roblox_Studio": {
+      "type": "http",
+      "url": "https://skinny-wages-stopped.ngrok-free.dev/mcp"
+    }
+  }
+}

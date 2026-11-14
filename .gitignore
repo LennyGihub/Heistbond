@@ -1,0 +1,5 @@
+graphify-out/cache/
+__pycache__/
+# exported code + map live only on main (tools/save_game.sh force-adds them there)
+/game/
+/graphify-out/

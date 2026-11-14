@@ -1,0 +1,18 @@
+# Map code + docs only: no images, video or audio, no tooling folders
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.bmp
+*.tga
+*.mp4
+*.mov
+*.webm
+*.mp3
+*.wav
+*.ogg
+roblox-mcp-bridge/
+tools/
+.claude/
