@@ -54,15 +54,15 @@
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 31912,
-   "sha1": "c481d51092910f5abe52ea5a89175df10d821f51"
+   "bytes": 32417,
+   "sha1": "dc2eb12a7dad0bac0e1582c5c95d9728d36ce6d6"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.CoverClient",
    "class": "LocalScript",
-   "bytes": 21206,
-   "sha1": "431d78b5b82928ed4c7164dc886be1f0af597483"
+   "bytes": 26524,
+   "sha1": "2a6e0e20b1fb5b5c5e42c5740ec25c70036f43a6"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/Crosshair.client.luau",

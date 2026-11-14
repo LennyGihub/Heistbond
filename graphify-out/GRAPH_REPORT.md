@@ -1,17 +1,17 @@
 # Graph Report - Heistbond  (2026-11-14)
 
 ## Corpus Check
-- 14 files · ~18,078 words
+- 14 files · ~18,978 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
 ## Summary
-- 106 nodes · 167 edges · 14 communities (9 shown, 5 thin omitted)
+- 109 nodes · 171 edges · 14 communities (9 shown, 5 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 17 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `93fef832`
+- Built from commit: `9f6c7379`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,9 +31,9 @@
 ## God Nodes (most connected - your core abstractions)
 1. `fireOnce()` - 10 edges
 2. `renderStep()` - 10 edges
-3. `GunAnim.step()` - 7 edges
-4. `playReload()` - 7 edges
-5. `findWall()` - 7 edges
+3. `findWall()` - 7 edges
+4. `GunAnim.step()` - 7 edges
+5. `playReload()` - 7 edges
 6. `takeHold()` - 6 edges
 7. `GunAnim.stop()` - 6 edges
 8. `Heistbond - Roblox dev workspace` - 6 edges
@@ -41,16 +41,16 @@
 10. `unequip()` - 5 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `takeHold()` --calls--> `GunPose.torsoFor()`  [INFERRED]
-  game/ServerScriptService/Weapons/WeaponServer.server.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `renderStep()` --calls--> `GunPose.anglesTo()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `takeHold()` --calls--> `GunPose.cframe()`  [INFERRED]
-  game/ServerScriptService/Weapons/WeaponServer.server.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `playReload()` --calls--> `GunPose.cframe()`  [INFERRED]
-  game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `renderStep()` --calls--> `GunPose.handleFrom()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunPose.luau
+- `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.tracer()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `renderStep()` --calls--> `GunAnim.isReloading()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunAnim.luau
 
 ## Import Cycles
 - None detected.
@@ -82,8 +82,8 @@ Cohesion: 0.32
 Nodes (4): angleDiff(), loadSneak(), loadTrack(), step()
 
 ### Community 9 - "CoverClient.client.luau"
-Cohesion: 0.27
-Nodes (7): findWall(), flat(), groundY(), isWall(), rayOrigin(), rayParams(), wallTop()
+Cohesion: 0.21
+Nodes (8): edgeAlong(), findWall(), flat(), groundY(), isWall(), rayOrigin(), rayParams(), wallTop()
 
 ### Community 11 - "CoverPose.luau"
 Cohesion: 0.33
@@ -100,15 +100,15 @@ Nodes (5): GunPose.anglesTo(), GunPose.cframe(), GunPose.handleAt(), GunPose.han
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `renderStep()` connect `GunClient.client.luau` to `GunAnim.luau`, `GunPose.luau`?**
-  _High betweenness centrality (0.090) - this node is a cross-community bridge._
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `fireOnce()` (e.g. with `Fx.impact()` and `Fx.muzzle()`) actually correct?**
   _`fireOnce()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Why does `fireOnce()` connect `GunClient.client.luau` to `.mcp.json`?**
-  _High betweenness centrality (0.087) - this node is a cross-community bridge._
+  _High betweenness centrality (0.082) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `renderStep()` (e.g. with `GunAnim.isReloading()` and `GunAnim.step()`) actually correct?**
   _`renderStep()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Why does `playReload()` connect `GunAnim.luau` to `README.md`, `GunPose.luau`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `GunAnim.step()` (e.g. with `renderStep()` and `playReload()`) actually correct?**
   _`GunAnim.step()` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 6 inferred relationships involving `playReload()` (e.g. with `GunAnim.isReloading()` and `GunAnim.startReload()`) actually correct?**

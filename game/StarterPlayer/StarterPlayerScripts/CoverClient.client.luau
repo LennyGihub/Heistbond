@@ -14,6 +14,13 @@
 --  * empty hands: palms pressed on the wall (CoverPose); with a gun the arms stay on the gun
 --  * aiming (right mouse) leaves the cover pose to shoot (behind a low wall: stand up and shoot over
 --    it); letting go goes back into cover if the wall is still there. Jumping leaves cover.
+--  * at the end of a tall wall (screen left/right, from the camera's point of view):
+--    - looking toward the screen-left end (moved there with the left key), the camera swings over the
+--      left shoulder (character attribute CamShoulder = -1, read by GunClient; moved here when unarmed)
+--    - aiming at the screen-right end: the character only leans out so the gun clears the corner
+--    - aiming at the screen-left end: it steps right out past the corner, so the aim camera (over the
+--      right shoulder) isn't blocked by the wall
+--    letting go of the aim walks it back to its spot in cover
 -- HeavyMovement steps aside while the character attribute InCover is true (this script then moves
 -- and turns the character). Other players see the pose through the replicated attribute CoverSide.
 local Players = game:GetService("Players")
@@ -44,6 +51,11 @@ local TURN_RATE = math.rad(540)
 local MAX_WALL_SLOPE = 0.35 -- |normal.Y| above this is a floor/ramp, not a wall
 local REACH_PROBES = { 2.6, 2.2, 1.8, 1.5, 1.25, 1.0 } -- where to look for the end of the wall
 local EDGE_STOP = 1.25 -- stop sliding when the wall ends this far to the side (shoulder at the corner)
+local EDGE_REACH = 1.8 -- aiming this close to a tall wall's end peeks around it
+local PEEK_LEAN = 0.3 -- screen-right end: the body stays this far inside the corner, the gun clears it
+local PEEK_REVEAL = 3.4 -- screen-left end: step this far past the corner (the aim camera sits right)
+local PEEK_SPEED = 9 -- studs/s when stepping out / back in
+local SHOULDER_SHIFT = 1.6 -- unarmed: how far the camera swings to the left shoulder
 
 -- local state
 local inCover = false -- the player wants to be in cover (stays true while aiming out of it)
@@ -57,6 +69,11 @@ local lowTop: number? = nil -- world height of the low wall's top, nil = tall wa
 local blindUntil = 0 -- blind firing until this time (os.clock)
 local blinding = false
 local blindGrip: Vector3? = nil
+-- peeking around a tall wall's end while aiming: walk from `anchor` (the cover spot) to `target`, and
+-- back once the aim is released
+type Peek = { anchor: Vector3, target: Vector3, back: boolean }
+local peek: Peek? = nil
+local shoulder = 1 -- camera shoulder: 1 = right (normal), -1 = swung to the left
 local touchDist: number? = nil -- root-to-wall distance where the body touches the wall
 local blockedFor = 0
 local lastDist: number? = nil
@@ -103,6 +120,31 @@ end
 
 local function isWall(hit: RaycastResult?): boolean
 	return hit ~= nil and math.abs(hit.Normal.Y) < MAX_WALL_SLOPE
+end
+
+-- how far along the wall (direction `tangent`) its end is, from `pos`; nil if it goes on past `reach`
+local function edgeAlong(params: RaycastParams, pos: Vector3, normal: Vector3, tangent: Vector3, dist: number, reach: number): number?
+	for d = 0.2, reach, 0.2 do
+		if not isWall(workspace:Raycast(pos + tangent * d, -normal * (dist + 1.2), params)) then
+			return d - 0.1
+		end
+	end
+	return nil
+end
+
+-- +1 if the wall's `right` (normal x up) points to the right of the screen, else -1
+local function screenSign(right: Vector3): number
+	local cam = workspace.CurrentCamera
+	return if cam and cam.CFrame.RightVector:Dot(right) < 0 then -1 else 1
+end
+
+-- turn the root toward `face` at the cover turn rate
+local function turnTo(root: BasePart, face: Vector3, dt: number)
+	local _, cur, _ = root.CFrame:ToOrientation()
+	local target = math.atan2(-face.X, -face.Z)
+	local d = (target - cur + math.pi) % (2 * math.pi) - math.pi
+	local yaw = cur + math.clamp(d, -TURN_RATE * dt, TURN_RATE * dt)
+	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, yaw, 0)
 end
 
 -- height of the ground under the character (feet level)
@@ -177,10 +219,12 @@ local function leave(why: string)
 	suspended = false
 	slide = 0
 	blinding, blindUntil, blindGrip = false, 0, nil
+	peek, shoulder = nil, 1
 	local char = player.Character
 	if char then
 		setLocalAttr(char, false)
 		char:SetAttribute("BlindGrip", nil)
+		char:SetAttribute("CamShoulder", nil)
 	end
 	send(false)
 end
@@ -256,8 +300,68 @@ local function step(dt: number)
 		return
 	end
 
-	-- aiming: step out of cover to shoot, come back when the aim is released
 	local aiming = char:GetAttribute("Aiming") == true
+
+	-- aiming at the end of a tall wall: peek around the corner (see the top of the script)
+	if aiming and not peek and not suspended and not lowTop then
+		local params = rayParams(char)
+		local pos = rayOrigin(char, root)
+		local hit = workspace:Raycast(pos, -normal * (FIND_RANGE + 0.5), params)
+		if isWall(hit) then
+			local right = normal:Cross(UP)
+			local dist = (pos - (hit :: RaycastResult).Position):Dot(normal)
+			local sr = screenSign(right)
+			local toRight, toLeft = right * sr, -right * sr -- screen directions along the wall
+			local dR = edgeAlong(params, pos, normal, toRight, dist, EDGE_REACH)
+			local dL = edgeAlong(params, pos, normal, toLeft, dist, EDGE_REACH)
+			if dR and dL then -- a narrow pillar: peek on the side the character looks toward
+				if side == sr then
+					dL = nil
+				else
+					dR = nil
+				end
+			end
+			local base = root.Position
+			local target: Vector3? = nil
+			if dR then
+				target = base + toRight * math.max(0, (dR :: number) - PEEK_LEAN)
+			elseif dL then
+				target = base + toLeft * ((dL :: number) + PEEK_REVEAL)
+			end
+			if target then
+				peek = { anchor = base, target = target :: Vector3, back = false }
+				blinding, blindUntil, blindGrip = false, 0, nil
+				char:SetAttribute("BlindGrip", nil)
+				shoulder = 1
+				char:SetAttribute("CamShoulder", nil)
+				send(false)
+			end
+		end
+	end
+	if peek then
+		local pk = peek :: Peek
+		pk.back = not aiming
+		local goal = if pk.back then pk.anchor else pk.target
+		local off = Vector3.new(goal.X - root.Position.X, 0, goal.Z - root.Position.Z)
+		hum.WalkSpeed = 15
+		if off.Magnitude > 0.08 then
+			hum:Move(off.Unit * math.min(PEEK_SPEED, off.Magnitude * 12) / hum.WalkSpeed, false)
+		else
+			hum:Move(Vector3.zero, false)
+		end
+		setLocalAttr(char, true) -- this script moves the character (HeavyMovementAim turns it to the aim)
+		if pk.back then
+			turnTo(root, normal, dt) -- back to the wall
+			if off.Magnitude <= 0.15 then
+				peek = nil
+				touchDist, blockedFor, lastDist, slide = nil, 0, nil, 0
+				send(true)
+			end
+		end
+		return
+	end
+
+	-- aiming: step out of cover to shoot, come back when the aim is released
 	if aiming and not suspended then
 		suspended = true
 		blinding, blindUntil, blindGrip = false, 0, nil
@@ -365,12 +469,17 @@ local function step(dt: number)
 	hum:Move(vel / hum.WalkSpeed, false)
 
 	-- tall wall: back to it, face away from it. Low wall: side-on, facing along it toward `side`
-	local _, cur, _ = root.CFrame:ToOrientation()
-	local face = if lowTop then right * side else normal
-	local target = math.atan2(-face.X, -face.Z)
-	local d = (target - cur + math.pi) % (2 * math.pi) - math.pi
-	local yaw = cur + math.clamp(d, -TURN_RATE * dt, TURN_RATE * dt)
-	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, yaw, 0)
+	turnTo(root, if lowTop then right * side else normal, dt)
+
+	-- tall wall, stopped at its screen-left end and looking that way: camera over the left shoulder
+	shoulder = 1
+	if not lowTop then
+		local sr = screenSign(right)
+		if side == -sr and edgeAlong(params, pos, normal, -right * sr, dist, EDGE_STOP + 0.15) then
+			shoulder = -1
+		end
+	end
+	char:SetAttribute("CamShoulder", if shoulder == -1 then -1 else nil)
 
 	-- blind fire: behind a low wall with a gun, the trigger (GunClient's BlockSprint) without aiming
 	-- holds the gun up over the wall
@@ -426,6 +535,22 @@ RunService:BindToRenderStep("CoverCamera", Enum.RenderPriority.Camera.Value - 1,
 	hum.CameraOffset = Vector3.new(hum.CameraOffset.X, camDrop, hum.CameraOffset.Z)
 end)
 
+-- unarmed: swing the camera to the left shoulder (GunClient does it while a gun is out)
+local shoulderShift = 0
+RunService:BindToRenderStep("CoverShoulder", Enum.RenderPriority.Camera.Value + 3, function(dt)
+	local char = player.Character
+	local cam = workspace.CurrentCamera
+	if not char or not cam or char:FindFirstChildOfClass("Tool") then
+		shoulderShift = 0
+		return
+	end
+	local want = if inCover and shoulder == -1 then -SHOULDER_SHIFT else 0
+	shoulderShift += (want - shoulderShift) * math.min(1, dt * 8)
+	if math.abs(shoulderShift) > 0.01 then
+		cam.CFrame *= CFrame.new(shoulderShift, 0, 0)
+	end
+end)
+
 -- pose of every character in cover (after the animations, before physics)
 type PoseState = CoverPose.State
 local poses: { [Model]: PoseState } = setmetatable({}, { __mode = "k" }) :: any
@@ -440,7 +565,8 @@ RunService.Stepped:Connect(function(_, dt)
 		-- CoverSide: 0 = not in cover, +-1 = tall wall, +-2 = low wall (sign = look side)
 		local on: boolean, wantSide: number, isLow: boolean, blind: boolean
 		if pl == player then
-			on, wantSide, isLow, blind = inCover and not suspended, side, lowTop ~= nil, blinding
+			local peekingOut = peek ~= nil and not (peek :: Peek).back
+			on, wantSide, isLow, blind = inCover and not suspended and not peekingOut, side, lowTop ~= nil, blinding
 		else
 			local s = char:GetAttribute("CoverSide")
 			on = typeof(s) == "number" and s ~= 0
@@ -533,6 +659,7 @@ end
 player.CharacterAdded:Connect(function()
 	inCover, suspended, slide = false, false, 0
 	lowTop, camDrop = nil, 0
+	peek, shoulder = nil, 1
 	blinding, blindUntil, blindGrip = false, 0, nil
 	lastSent = nil
 end)

@@ -546,7 +546,13 @@ local function renderStep(dt: number)
 
 	-- third person: over-the-shoulder offset in camera space
 	if not firstPerson then
-		camOffset = camOffset:Lerp(aiming and AIM_OFFSET or HIP_OFFSET, alpha)
+		-- in cover at a wall's screen-left end, CoverClient swings the camera to the left shoulder
+		-- (CamShoulder = -1); aiming always uses the right shoulder
+		local shoulderOffset = aiming and AIM_OFFSET or HIP_OFFSET
+		if not aiming and char:GetAttribute("CamShoulder") == -1 then
+			shoulderOffset = Vector2.new(-shoulderOffset.X, shoulderOffset.Y)
+		end
+		camOffset = camOffset:Lerp(shoulderOffset, alpha)
 		local pull = aimAlpha * math.max(0, dist - AIM_DISTANCE)
 		local from = cam.CFrame.Position
 		local to = cam.CFrame:PointToWorldSpace(Vector3.new(camOffset.X, camOffset.Y, -pull))
@@ -754,8 +760,12 @@ local function unequip()
 	aimAlpha = 0
 end
 
--- Studio-only test hook: set tool attribute TestFire to N to fire an N-round burst (tests can't click)
+-- Studio-only test hooks (tests can't click): tool attribute TestFire = N fires an N-round burst,
+-- TestAiming = true/false holds/releases the aim
 if IS_STUDIO then
+	tool:GetAttributeChangedSignal("TestAiming"):Connect(function()
+		setAiming(tool:GetAttribute("TestAiming") == true)
+	end)
 	tool:GetAttributeChangedSignal("TestFire"):Connect(function()
 		local n = tool:GetAttribute("TestFire")
 		if typeof(n) ~= "number" or n <= 0 then
