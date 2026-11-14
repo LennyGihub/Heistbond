@@ -186,16 +186,12 @@ local function armIK(hum: Humanoid, char: Model, side: string): IKControl?
 	if not upper or not gripAtt or not torso then
 		return nil -- not an R15 rig: keep the default one-hand hold
 	end
-	local pole = Instance.new("Attachment")
-	pole.Name = "Gun" .. side .. "ElbowPole"
-	pole.Position = side == "Right" and Vector3.new(2, -2, 1) or Vector3.new(-2, -2.2, -0.5)
-	pole.Parent = torso
 	local ik = Instance.new("IKControl")
 	ik.Name = name
-	ik.Type = Enum.IKControlType.Transform
+	-- position-only reaches much closer than forcing the hand's angle on blocky R15 arms (measured)
+	ik.Type = Enum.IKControlType.Position
 	ik.ChainRoot = upper
 	ik.EndEffector = gripAtt
-	ik.Pole = pole
 	ik.SmoothTime = 0.04
 	ik.Enabled = false
 	ik.Parent = hum

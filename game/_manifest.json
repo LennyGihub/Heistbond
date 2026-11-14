@@ -12,8 +12,8 @@
    "file": "ReplicatedStorage/Weapons/GunPose.luau",
    "instance": "game.ReplicatedStorage.Weapons.GunPose",
    "class": "ModuleScript",
-   "bytes": 1996,
-   "sha1": "343a54e09104ecb3929f597ae997b528299a4c56"
+   "bytes": 2634,
+   "sha1": "8ddc137fc60259fd5113daa8c92b66045477a884"
   },
   {
    "file": "ReplicatedStorage/Weapons/WeaponConfig.luau",
@@ -33,15 +33,15 @@
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
    "instance": "game.ServerScriptService.Weapons.WeaponServer",
    "class": "Script",
-   "bytes": 10286,
-   "sha1": "369ee1651380a0541f6fc4696241b93288c8b4b5"
+   "bytes": 10173,
+   "sha1": "20786a0728a49d130478ccf5617bd107d40d8890"
   },
   {
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 26855,
-   "sha1": "197f81ff2480c3ab3b234acc8b9bc69a4b761d8f"
+   "bytes": 27326,
+   "sha1": "58a538e8e57123e7ade23b6896d5ff71a360b1ef"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",

@@ -32,12 +32,11 @@ local AIM_DISTANCE = 6.5 -- studs from the character while aiming
 local FACE_AFTER_SHOT = 0.6 -- seconds the character keeps facing the camera after hip fire
 local BASE_FOV = 70
 -- first person: where the gun's handle sits relative to the camera
-local FP_HIP = CFrame.new(0.34, -0.4, -1.75) * CFrame.Angles(0, math.rad(2), 0)
+local FP_HIP = CFrame.new(0.16, -0.62, -0.36) * CFrame.Angles(0, math.rad(2), 0) -- close: nothing behind the sight is in view
 local FP_FOV = 55 -- narrower first-person view: more hands and gun, less arm
 local FP_AIM_FOV = 38
-local HIP_YAW = math.rad(25) -- third person, not aiming: how far the gun swings off the body's facing
 local RECOIL_RADIUS = math.rad(2.2) -- recoil stays inside this circle around where you aim
-local EYE_RELIEF = 1.0 -- studs from the eye to the sight's reticle while aiming in first person
+local EYE_RELIEF = 0.55 -- studs from the eye to the sight's reticle while aiming in first person
 local fpAim = CFrame.new(0.022, -0.615, -1.05) -- recomputed from the gun's Sight attachment on equip
 -- the avatar's own arms are far too chunky this close to the camera: first person draws slim local arms
 local FP_ELBOW = { Right = Vector3.new(1.0, -1.5, -0.4), Left = Vector3.new(-1.1, -1.6, -1.2) } -- camera space, low and wide
@@ -55,6 +54,7 @@ local recoilTarget = Vector2.zero -- where recoil wants the aim (pitch, yaw offs
 local recoilCur = Vector2.zero
 local recoilApplied = Vector2.zero
 local poseYaw, posePitch = 0, 0 -- smoothed third-person gun angles
+local holdAlpha = 0 -- third person: 0 = low ready carry, 1 = shouldered (aiming or just fired)
 local bloom = 0 -- extra spread from sustained fire, degrees
 local reloadToken = 0
 local firing: thread? = nil
@@ -473,6 +473,13 @@ local function updateViewArms(handleCF: CFrame, camCF: CFrame)
 	end
 end
 
+-- turn the character so it faces yawAngle (radians), smoothly; used while aiming (bladed stance)
+local function faceYaw(root: BasePart, yawAngle: number, dt: number)
+	local _, cur, _ = root.CFrame:ToOrientation()
+	local d = (yawAngle - cur + math.pi) % (2 * math.pi) - math.pi
+	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, cur + d * math.min(1, dt * 16), 0)
+end
+
 local function renderStep(dt: number)
 	local cam = Workspace.CurrentCamera
 	local hum = humanoid
@@ -486,6 +493,7 @@ local function renderStep(dt: number)
 	local dist = (cam.CFrame.Position - cam.Focus.Position).Magnitude
 	local firstPerson = dist < 1.2
 	local now = os.clock()
+	local engaged = aiming or (now - lastShot < FACE_AFTER_SHOT)
 
 	-- no cursor; the camera follows the mouse freely
 	UserInputService.MouseIconEnabled = false
@@ -527,6 +535,12 @@ local function renderStep(dt: number)
 
 	if firstPerson then
 		gameSettings.RotationType = Enum.RotationType.CameraRelative
+		hum.AutoRotate = false
+		if root then
+			local lv = cam.CFrame.LookVector
+			faceYaw(root, math.atan2(-lv.X, -lv.Z) - GunPose.BLADE, dt)
+		end
+		yaw = GunPose.BLADE -- other players see the shouldered gun pointing where we look
 		-- sway: the gun lags a little behind fast camera turns
 		local look = cam.CFrame.LookVector
 		local turn = Vector2.zero
@@ -558,38 +572,36 @@ local function renderStep(dt: number)
 			destroyViewArms()
 			lastLook = nil
 		end
-		-- aiming / just fired: point exactly at what's under the screen centre.
-		-- otherwise: follow the view direction calmly, within a small swing, never flipping sides.
-		local engaged = aiming or (now - lastShot < FACE_AFTER_SHOT)
+		-- not aiming: a steady low-ready carry that ignores the camera.
+		-- aiming / just fired: shouldered and pointed exactly at what's under the screen centre.
+		holdAlpha += ((engaged and 1 or 0) - holdAlpha) * math.min(1, dt * 14)
 		if torso then
-			local target = if engaged then aimTarget(rayParams()) else cam.CFrame.Position + cam.CFrame.LookVector * 60
-			local wantYaw, wantPitch = GunPose.anglesTo(torso, aimAlpha, target)
-			if not engaged then
-				if math.abs(wantYaw) > math.rad(100) then
-					wantYaw = 0 -- looking behind: keep the gun forward
-				end
-				wantYaw = math.clamp(wantYaw, -HIP_YAW, HIP_YAW)
-				wantPitch = math.clamp(wantPitch, -0.6, 0.6)
+			local wantYaw, wantPitch = 0, 0
+			if engaged then
+				wantYaw, wantPitch = GunPose.anglesTo(torso, 1, aimTarget(rayParams()))
 			end
-			local rate = math.min(1, dt * (engaged and 18 or 6))
+			local rate = math.min(1, dt * 18)
 			poseYaw += (wantYaw - poseYaw) * rate
 			posePitch += (wantPitch - posePitch) * rate
 			yaw, pitch = poseYaw, posePitch
 		end
-		-- not aiming: the body faces where you walk and the gun swings toward the target (up to MAX_YAW).
-		-- aiming or just after shooting: the body turns to face where you look.
-		local faceCamera = aiming or (now - lastShot < FACE_AFTER_SHOT)
-		gameSettings.RotationType = faceCamera and Enum.RotationType.CameraRelative or Enum.RotationType.MovementRelative
+		-- not engaged: the body faces where you walk. engaged: bladed stance, turned BLADE right of where you look
+		gameSettings.RotationType = Enum.RotationType.MovementRelative
+		hum.AutoRotate = not engaged
+		if engaged and root then
+			local lv = cam.CFrame.LookVector
+			faceYaw(root, math.atan2(-lv.X, -lv.Z) - GunPose.BLADE, dt)
+		end
 		if weld and torso then
-			weld.C0 = GunPose.cframe(torso.Size, aimAlpha, pitch, yaw) * kickCF * reloadCF
+			weld.C0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
 		end
 	end
 	wasFirstPerson = firstPerson
 
 	-- tell the server so everyone else sees where the gun points
-	if now - lastPoseSent > 0.1 and (aiming ~= sentAiming or math.abs(pitch - sentPitch) > 0.03 or math.abs(yaw - sentYaw) > 0.03) then
-		lastPoseSent, sentAiming, sentPitch, sentYaw = now, aiming, pitch, yaw
-		PoseRemote:FireServer(aiming or firstPerson, pitch, yaw)
+	if now - lastPoseSent > 0.1 and ((engaged or firstPerson) ~= sentAiming or math.abs(pitch - sentPitch) > 0.03 or math.abs(yaw - sentYaw) > 0.03) then
+		lastPoseSent, sentAiming, sentPitch, sentYaw = now, engaged or firstPerson, pitch, yaw
+		PoseRemote:FireServer(engaged or firstPerson, pitch, yaw)
 	end
 
 	-- Studio-only test hook: set tool attribute TestCam (Vector3, character space) to film the gun
@@ -657,7 +669,7 @@ local function unequip()
 	wasFirstPerson, lastLook = false, nil
 	kick, sway = Vector2.zero, Vector2.zero
 	recoilTarget, recoilCur, recoilApplied = Vector2.zero, Vector2.zero, Vector2.zero
-	poseYaw, posePitch = 0, 0
+	poseYaw, posePitch, holdAlpha = 0, 0, 0
 	pcall(function()
 		RunService:UnbindFromRenderStep(RENDER_NAME)
 	end)
@@ -674,6 +686,7 @@ local function unequip()
 	local cam = Workspace.CurrentCamera
 	cam.FieldOfView = BASE_FOV
 	if humanoid then
+		humanoid.AutoRotate = true
 		humanoid.WalkSpeed = baseWalkSpeed
 	end
 	if gui then

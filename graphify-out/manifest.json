@@ -18,51 +18,51 @@
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/GunAnim.luau": {
-    "mtime": 1794661392.1731653,
-    "seen": 1794661395.9638932,
+    "mtime": 1794662871.8081112,
+    "seen": 1794662874.1460233,
     "ast_hash": "5279e033e61b0d5efa4f9c21751a256e",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/GunPose.luau": {
-    "mtime": 1794661392.4403713,
-    "seen": 1794661395.9638968,
-    "ast_hash": "340b20a6bfa77e5d40a702353b016c91",
-    "semantic_hash": "340b20a6bfa77e5d40a702353b016c91"
+    "mtime": 1794662872.073334,
+    "seen": 1794662874.1460261,
+    "ast_hash": "e2ee13fa17e26c69db92f9b0a863feb7",
+    "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/WeaponConfig.luau": {
-    "mtime": 1794661392.7225888,
-    "seen": 1794661395.9638991,
+    "mtime": 1794662872.339796,
+    "seen": 1794662874.1460278,
     "ast_hash": "085c79c66d26aaf070de10f51c6b1766",
     "semantic_hash": "085c79c66d26aaf070de10f51c6b1766"
   },
   "game/ReplicatedStorage/Weapons/WeaponFx.luau": {
-    "mtime": 1794661392.9975197,
-    "seen": 1794661395.963901,
+    "mtime": 1794662872.621995,
+    "seen": 1794662874.1460292,
     "ast_hash": "c0fce70fa9b39b2896901b98a9f77a29",
     "semantic_hash": "c0fce70fa9b39b2896901b98a9f77a29"
   },
   "game/ServerScriptService/Weapons/WeaponServer.server.luau": {
-    "mtime": 1794661393.3045657,
-    "seen": 1794661395.9639025,
-    "ast_hash": "0c022d1c6305b3c6fde414e770e78131",
-    "semantic_hash": "0c022d1c6305b3c6fde414e770e78131"
+    "mtime": 1794662872.9144685,
+    "seen": 1794662874.1460307,
+    "ast_hash": "c1f795abe91637d52a37889d6d1c2102",
+    "semantic_hash": ""
   },
   "game/StarterPack/M4A1/GunClient.client.luau": {
-    "mtime": 1794661393.6299343,
-    "seen": 1794661395.963904,
-    "ast_hash": "54be9632612a908d4bac4b8567e2f16a",
+    "mtime": 1794662873.2441578,
+    "seen": 1794662874.1460319,
+    "ast_hash": "20071bba98caf6a75522b42aaf564a09",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau": {
-    "mtime": 1794661393.9150894,
-    "seen": 1794661395.9639053,
+    "mtime": 1794662873.504498,
+    "seen": 1794662874.146033,
     "ast_hash": "73e7db6ca8bac2a0a93a0f4d7556d75f",
     "semantic_hash": "73e7db6ca8bac2a0a93a0f4d7556d75f"
   },
   "game/_manifest.json": {
-    "mtime": 1794661393.915288,
-    "seen": 1794661395.9639068,
-    "ast_hash": "d968bfec41903c2a6e33ab84ace61ee4",
+    "mtime": 1794662873.5046892,
+    "seen": 1794662874.1460342,
+    "ast_hash": "4e32132673403cb754cc12e261343fca",
     "semantic_hash": ""
   }
 }
