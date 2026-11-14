@@ -1,7 +1,7 @@
 --!strict
 -- Replicates who is in cover: CoverClient tells the server (CoverState remote), the server sets the
--- character attribute CoverSide (0 = not in cover, -1/1 = looking left/right) that every client uses
--- to draw the cover pose. Purely visual, so the only checks are types, a rate limit and that the
+-- character attributes every client uses to draw the cover pose: CoverSide (0 = not in cover, +-1 =
+-- tall wall, +-2 = low wall; the sign is the look side) and CoverBlind (blind firing over a low wall). Purely visual, so the only checks are types, a rate limit and that the
 -- character is alive.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,7 +19,7 @@ end
 
 local budget: { [Player]: { t: number, n: number } } = {}
 
-(remote :: RemoteEvent).OnServerEvent:Connect(function(player: Player, on: unknown, side: unknown)
+(remote :: RemoteEvent).OnServerEvent:Connect(function(player: Player, on: unknown, side: unknown, low: unknown, blind: unknown)
 	local now = os.clock()
 	local b = budget[player]
 	if not b or now - b.t > 1 then
@@ -40,10 +40,12 @@ local budget: { [Player]: { t: number, n: number } } = {}
 		return
 	end
 	local value = 0
-	if on and hum.Health > 0 then
-		value = (typeof(side) == "number" and side < 0) and -1 or 1
+	local alive = on and hum.Health > 0
+	if alive then
+		value = ((typeof(side) == "number" and side < 0) and -1 or 1) * (low == true and 2 or 1)
 	end
 	char:SetAttribute("CoverSide", value)
+	char:SetAttribute("CoverBlind", if alive and low == true and blind == true then true else nil)
 end)
 
 Players.PlayerRemoving:Connect(function(p)

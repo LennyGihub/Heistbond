@@ -5,8 +5,11 @@
 --  * in cover, the left/right movement keys (Q/D on AZERTY, A/D on QWERTY) slide along the wall;
 --    forward/back do nothing. The character stops at the end of the wall instead of walking off it
 --  * the character looks toward the side it last moved to (or was going when it took cover)
---  * low walls (from about knee to chest high): the character crouches behind them, just deep enough
---    to hide its head, and slides along them more slowly
+--  * low walls (from about knee to chest high): the character turns side-on with its shoulder to the
+--    wall, bent forward so its head stays under the top; still it kneels, moving it walks crouched
+--    (left/right turns it around). The camera rises a little so the screen centre (the crosshair) is
+--    above the wall. Firing without aiming = blind fire: the gun is held up over the wall (character
+--    attribute GunLift, read by GunClient) while the body stays down
 --  * empty hands: palms pressed on the wall (CoverPose); with a gun the arms stay on the gun
 --  * aiming (right mouse) leaves the cover pose to shoot (behind a low wall: stand up and shoot over
 --    it); letting go goes back into cover if the wall is still there. Jumping leaves cover.
@@ -30,7 +33,9 @@ local COVER_SPEED_LOW = 1.8 -- crouched behind a low wall
 local WALL_RAY_H = 1.5 -- wall rays run this high above the ground (hits low walls and tall ones)
 local MIN_LOW = 2.2 -- a wall lower than this (studs above the ground) is too low to hide behind
 local TALL_H = 4.6 -- a wall at least this high is a tall wall (stand); lower = low wall (crouch)
-local CROUCH_CAM = -1.1 -- camera drop while crouched behind a low wall
+local LOW_CAM_ABOVE = 1.4 -- behind a low wall the camera looks from this high above the wall's top
+local BLIND_HOLD = 0.6 -- blind fire keeps the gun up this long after the trigger is released
+local MUZZLE_ABOVE = 0.5 -- blind fire: the muzzle goes this far above the wall's top
 local COVER_ACCEL = 30
 local BACK_GAP = CoverPose.BACK_GAP -- gap between the back and the wall
 local TURN_RATE = math.rad(540)
@@ -47,6 +52,9 @@ local slide = 0 -- current speed along the wall (+ = toward the character's righ
 local lostFor = 0
 local airFor = 0
 local lowTop: number? = nil -- world height of the low wall's top, nil = tall wall
+local blindUntil = 0 -- blind firing until this time (os.clock)
+local blinding = false
+local gunLift = 0
 local touchDist: number? = nil -- root-to-wall distance where the body touches the wall
 local blockedFor = 0
 local lastDist: number? = nil
@@ -82,6 +90,13 @@ local function backDepth(char: Model): number
 		return torso.Size.Z / 2
 	end
 	return 0.5
+end
+
+-- low wall, side-on: distance from the root's centre to the outside of the arm on the wall side
+local function sideDepth(char: Model): number
+	local torso = char:FindFirstChild("UpperTorso") :: BasePart?
+	local arm = char:FindFirstChild("RightUpperArm") :: BasePart?
+	return (torso and torso.Size.X / 2 or 1) + (arm and arm.Size.X or 1) + 0.05
 end
 
 local function isWall(hit: RaycastResult?): boolean
@@ -145,10 +160,10 @@ local function setLocalAttr(char: Model, on: boolean)
 end
 
 local function send(on: boolean)
-	local key = on and tostring(side) or "off"
+	local key = if on then string.format("%d%s%s", side, tostring(lowTop ~= nil), tostring(blinding)) else "off"
 	if key ~= lastSent then
 		lastSent = key
-		CoverRemote:FireServer(on, side)
+		CoverRemote:FireServer(on, side, lowTop ~= nil, blinding)
 	end
 end
 
@@ -159,9 +174,11 @@ local function leave(why: string)
 	inCover = false
 	suspended = false
 	slide = 0
+	blinding, blindUntil, gunLift = false, 0, 0
 	local char = player.Character
 	if char then
 		setLocalAttr(char, false)
+		char:SetAttribute("GunLift", nil)
 	end
 	send(false)
 end
@@ -241,6 +258,8 @@ local function step(dt: number)
 	local aiming = char:GetAttribute("Aiming") == true
 	if aiming and not suspended then
 		suspended = true
+		blinding, blindUntil, gunLift = false, 0, 0
+		char:SetAttribute("GunLift", nil)
 		setLocalAttr(char, false)
 		send(false)
 	elseif not aiming and suspended then
@@ -321,7 +340,7 @@ local function step(dt: number)
 	-- get the back to the wall, then stop pushing: the turned shoulders often touch it before the root
 	-- reaches its ideal spot, and pushing on into that contact makes the body skid sideways. So once
 	-- the body stops getting closer while pushing, that distance becomes the target.
-	local ideal = backDepth(char) + BACK_GAP
+	local ideal = if lowTop then sideDepth(char) else backDepth(char) + BACK_GAP
 	if touchDist and dist < (touchDist :: number) - 0.05 then
 		touchDist = math.max(dist, ideal) -- got closer (the wall changed): keep the closer spot
 	end
@@ -343,18 +362,40 @@ local function step(dt: number)
 	hum.WalkSpeed = 15
 	hum:Move(vel / hum.WalkSpeed, false)
 
-	-- back to the wall: face away from it
+	-- tall wall: back to it, face away from it. Low wall: side-on, facing along it toward `side`
 	local _, cur, _ = root.CFrame:ToOrientation()
-	local target = math.atan2(-normal.X, -normal.Z)
+	local face = if lowTop then right * side else normal
+	local target = math.atan2(-face.X, -face.Z)
 	local d = (target - cur + math.pi) % (2 * math.pi) - math.pi
 	local yaw = cur + math.clamp(d, -TURN_RATE * dt, TURN_RATE * dt)
 	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, yaw, 0)
+
+	-- blind fire: behind a low wall with a gun, the trigger (GunClient's BlockSprint) without aiming
+	-- holds the gun up over the wall
+	local armed = char:FindFirstChildOfClass("Tool") ~= nil
+	local trigger = char:GetAttribute("BlockSprint") == true
+		or (IS_STUDIO and player:GetAttribute("CoverBlindTest") == true) -- test hook: hold the trigger
+	if lowTop and armed and trigger then
+		blindUntil = os.clock() + BLIND_HOLD
+	end
+	blinding = lowTop ~= nil and armed and os.clock() < blindUntil
+	-- raise the gun until its muzzle is MUZZLE_ABOVE over the wall's top (measured, so it works
+	-- whatever pose the gun is in)
+	local tool = char:FindFirstChildOfClass("Tool")
+	local handle = tool and tool:FindFirstChild("Handle")
+	local muzzle = handle and handle:FindFirstChild("Muzzle") :: Attachment?
+	local wantLift = 0
+	if blinding and lowTop and muzzle then
+		wantLift = math.clamp(gunLift + (lowTop :: number) + MUZZLE_ABOVE - muzzle.WorldPosition.Y, 0, 3)
+	end
+	gunLift += (wantLift - gunLift) * math.min(1, dt * 10)
+	char:SetAttribute("GunLift", if gunLift > 0.01 then gunLift else nil)
 
 	send(true)
 end
 RunService:BindToRenderStep("CoverMove", Enum.RenderPriority.Input.Value + 1, step)
 
--- crouched behind a low wall: the camera goes down with the body
+-- behind a low wall the camera rises a little, so the screen centre (crosshair) is above the wall
 local camDrop = 0
 RunService:BindToRenderStep("CoverCamera", Enum.RenderPriority.Camera.Value - 1, function(dt)
 	local char = player.Character
@@ -362,7 +403,11 @@ RunService:BindToRenderStep("CoverCamera", Enum.RenderPriority.Camera.Value - 1,
 	if not hum then
 		return
 	end
-	local want = (inCover and not suspended and lowTop) and CROUCH_CAM or 0
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local want = 0
+	if inCover and not suspended and lowTop and root then
+		want = math.clamp((lowTop :: number) + LOW_CAM_ABOVE - (root.Position.Y + 1.5), 0, 2.5)
+	end
 	if want == 0 and camDrop == 0 then
 		return
 	end
@@ -384,13 +429,16 @@ RunService.Stepped:Connect(function(_, dt)
 		if not char or not root then
 			continue
 		end
-		local on: boolean, wantSide: number
+		-- CoverSide: 0 = not in cover, +-1 = tall wall, +-2 = low wall (sign = look side)
+		local on: boolean, wantSide: number, isLow: boolean, blind: boolean
 		if pl == player then
-			on, wantSide = inCover and not suspended, side
+			on, wantSide, isLow, blind = inCover and not suspended, side, lowTop ~= nil, blinding
 		else
 			local s = char:GetAttribute("CoverSide")
 			on = typeof(s) == "number" and s ~= 0
-			wantSide = if on then s :: number else 0
+			wantSide = if on then math.sign(s :: number) else 0
+			isLow = on and math.abs(s :: number) > 1.5
+			blind = char:GetAttribute("CoverBlind") == true
 		end
 		local ps = poses[char]
 		if not ps then
@@ -406,27 +454,31 @@ RunService.Stepped:Connect(function(_, dt)
 			p.side += (wantSide - p.side) * math.min(1, dt * 8)
 		end
 		p.armed = char:FindFirstChildOfClass("Tool") ~= nil
+		p.blind = (p.blind or 0) + ((blind and 1 or 0) - (p.blind or 0)) * math.min(1, dt * 12)
 		local params = rayParams(char)
-		-- where the wall really is behind the back (the twisted shoulders can keep the body off it), and
-		-- whether it is a low one (crouch) - measured the same way for every player
+		-- where the wall really is (tall: behind the back - the twisted shoulders can keep the body off
+		-- it; low: beside the body, on the look side) and how high a low wall is
 		local back = flat(root.CFrame.LookVector)
+		local wallDir = if isLow then root.CFrame.RightVector * (wantSide >= 0 and 1 or -1) else -back
 		local ground = groundY(char, root)
 		local origin = rayOrigin(char, root)
-		local wallHit = workspace:Raycast(origin, -back * 2.5, params)
-		p.wall = if wallHit then wallHit.Distance else nil
-		if wallHit and on then
-			p.top = wallTop(params, wallHit.Position, back, ground)
+		local wallHit = workspace:Raycast(origin, wallDir * 3, params)
+		p.wall = if wallHit and not isLow then wallHit.Distance else nil
+		if wallHit and isLow then
+			p.top = wallTop(params, wallHit.Position, -wallDir, ground) or p.top
+		elseif not isLow then
+			p.top = nil
 		end
-		p.low += ((on and p.top) and 1 - p.low or -p.low) * math.min(1, dt * 8)
-		-- sidestep from the real sliding speed (works the same for other players)
+		p.low += ((on and isLow) and 1 - p.low or -p.low) * math.min(1, dt * 8)
+		-- step cycle from the real ground speed (works the same for other players)
 		local v = root.AssemblyLinearVelocity
-		local sideways = math.abs(v:Dot(root.CFrame.RightVector))
+		local moving = Vector3.new(v.X, 0, v.Z).Magnitude
 		local speed = COVER_SPEED + (COVER_SPEED_LOW - COVER_SPEED) * p.low
-		p.phase = (p.phase + sideways * dt / CoverPose.stepLen(p.low) * math.pi * 2) % (math.pi * 2)
-		p.step += (math.clamp(sideways / speed, 0, 1) - p.step) * math.min(1, dt * 10)
+		p.phase = (p.phase + moving * dt / CoverPose.STEP_LEN * math.pi * 2) % (math.pi * 2)
+		p.step += (math.clamp(moving / speed, 0, 1) - p.step) * math.min(1, dt * 10)
 		-- how far the wall reaches on the look side, at hand height (the lead hand stays on it)
 		p.reach = nil
-		if wallHit then
+		if wallHit and not isLow then
 			local lookDir = root.CFrame.RightVector * (p.side >= 0 and 1 or -1)
 			local depth = wallHit.Distance + 0.6
 			local y = if p.top then math.min(root.Position.Y + 0.5, p.top - 0.5) else root.Position.Y + 0.5
@@ -469,5 +521,6 @@ end
 player.CharacterAdded:Connect(function()
 	inCover, suspended, slide = false, false, 0
 	lowTop, camDrop = nil, 0
+	blinding, blindUntil, gunLift = false, 0, 0
 	lastSent = nil
 end)

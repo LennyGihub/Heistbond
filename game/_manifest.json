@@ -5,8 +5,8 @@
    "file": "ReplicatedStorage/Cover/CoverPose.luau",
    "instance": "game.ReplicatedStorage.Cover.CoverPose",
    "class": "ModuleScript",
-   "bytes": 15142,
-   "sha1": "a1f894a6d23364eb9798989ba7a28c382828d895"
+   "bytes": 17170,
+   "sha1": "e8adf8fbd3299cc6fde2fb1926120ad117c6208e"
   },
   {
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",
@@ -40,29 +40,36 @@
    "file": "ServerScriptService/Cover/CoverServer.server.luau",
    "instance": "game.ServerScriptService.Cover.CoverServer",
    "class": "Script",
-   "bytes": 1548,
-   "sha1": "db18408c7b00f09edb655355098e68c424c32cb9"
+   "bytes": 1800,
+   "sha1": "abc5187dd9501c5df31a7ded5ba33f07e5cd8daf"
   },
   {
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
    "instance": "game.ServerScriptService.Weapons.WeaponServer",
    "class": "Script",
-   "bytes": 10354,
-   "sha1": "6394210b52ce5cc58f23b34cf15cf0e8c8d6a2ef"
+   "bytes": 10677,
+   "sha1": "8d40b48ca0a520244ed2d0c0a1b122ed92ca8913"
   },
   {
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 28173,
-   "sha1": "6af793b820cb8000b98bf20a3610dabf5601b020"
+   "bytes": 29028,
+   "sha1": "cb26c7b0aa95c3c9dc01a6bdb396cd8e0802e285"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.CoverClient",
    "class": "LocalScript",
-   "bytes": 17277,
-   "sha1": "ff7d996e8f19f33d15f257003551d082e40ae491"
+   "bytes": 20502,
+   "sha1": "08fb5bc4be2c1638c6f963ee6231aa372d63c444"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/Crosshair.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.Crosshair",
+   "class": "LocalScript",
+   "bytes": 1778,
+   "sha1": "0e4ddbf328ae1ebfd10442300e744e1470884242"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",

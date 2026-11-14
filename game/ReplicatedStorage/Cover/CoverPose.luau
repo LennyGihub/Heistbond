@@ -3,51 +3,54 @@
 -- Transform (Motor6D or AnimationConstraint). Used by CoverClient for every character in cover
 -- (the local one and other players), every frame between the animations and physics.
 --
--- Pose: back flat against the wall (the wall is right behind the root, which faces away from it),
--- knees a little bent, upper body and head turned toward `side` (+1 = the character's right,
--- -1 = its left). Empty hands: both palms flat on the wall, placed by a two-bone IK - the hand on the
--- look side out at shoulder height, the other one beside the hip; they sway a little with the steps.
--- Behind a low wall (`low`) the character crouches so its head is just under the wall's top.
--- While sliding along the wall the legs do a chasse step driven by `phase`. With a weapon in hand the
--- arms are left to the gun's IK.
+-- Tall wall (low = 0): back flat against the wall (the root faces away from it), knees a little
+-- bent, upper body and head turned toward `side` (+1 = the character's right, -1 = its left).
+-- Empty hands: both palms flat on the wall, placed by a two-bone IK - the hand on the look side out
+-- at shoulder height, the other one beside the hip; they sway a little with the steps. Sliding along
+-- the wall is a chasse step driven by `phase`.
 --
--- Joint axes (R15 joint frames are body-aligned): +X swings a hanging limb forward, +Z moves it
--- toward the body's +X (right), +Y turns left.
+-- Low wall (low = 1): side-on, the shoulder on the `side` side toward the wall (CoverClient turns the
+-- root to face along the wall), upper body bent forward just enough to keep the head under the
+-- wall's top. Still: down on the wall-side knee, the other foot flat in front. Moving: a crouched
+-- walk. Empty hands hang in front and swing a little with the steps. `blind` (blind fire over the
+-- wall) barely straightens the back: the head stays down, the shouldered gun is lifted over the top.
+--
+-- With a weapon in hand the arms are left to the gun's IK.
+--
+-- Joint axes (R15 joint frames are body-aligned): +X swings a hanging limb forward (and bends the
+-- upper body forward at the waist), +Z moves it toward the body's +X (right), +Y turns left.
 local CoverPose = {}
 
 export type State = {
 	alpha: number, -- 0 = normal animation, 1 = full cover pose
 	side: number, -- -1 .. 1, smoothed look side
-	phase: number, -- sidestep cycle (radians)
-	step: number, -- 0..1 how much the sidestep plays (0 = standing still)
+	phase: number, -- step cycle (radians)
+	step: number, -- 0..1 how much the step cycle plays (0 = standing still)
 	armed: boolean,
 	wall: number?, -- measured distance from the root's centre to the wall behind it (nil = assume)
 	reach: number?, -- how far the wall goes on the look side, from the root (nil = far enough)
-	low: number, -- 0 = tall wall (standing), 1 = low wall (crouched behind it); smoothed
-	top: number?, -- world height of the low wall's top (sets how deep to crouch)
+	low: number, -- 0 = tall wall (standing, back to it), 1 = low wall (side-on, crouched); smoothed
+	top: number?, -- world height of the low wall's top (sets how far to bend down)
+	blind: number?, -- 0..1 blind firing over a low wall
 }
 
 CoverPose.BACK_GAP = 0.08 -- gap between the back and the wall (CoverClient keeps it)
 
--- chasse step: relative to the body each foot moves STEP_HALF studs either side of its spot; one
--- full cycle (each foot steps once, STEP_LEN studs) moves the body STEP_LEN studs, which CoverClient
--- uses to advance the phase so planted feet don't slide
+-- steps: relative to the body each foot moves STEP_HALF studs either side of its spot; one full
+-- cycle (each foot steps once) moves the body STEP_LEN studs, which CoverClient uses to advance the
+-- phase so planted feet don't slide. Same length for the chasse step and the crouched walk.
 CoverPose.STEP_HALF = 0.45
 CoverPose.STEP_LEN = 4 * CoverPose.STEP_HALF
-local LOW_STEP = 0.6 -- crouched steps are this much of the standing ones
 
--- STEP_LEN for a given crouch amount (0 = standing, 1 = crouched)
-function CoverPose.stepLen(low: number): number
-	return CoverPose.STEP_LEN * (1 + (LOW_STEP - 1) * math.clamp(low, 0, 1))
-end
-
--- crouching behind a low wall: the head goes HEAD_BELOW studs under the wall's top, the hips drop
--- at most MAX_CROUCH studs (deeper than that the upper body hunches forward a little)
+-- behind a low wall the head stays HEAD_BELOW studs under the wall's top
 local HEAD_BELOW = 0.25
-local MIN_CROUCH, MAX_CROUCH = 0.7, 1.45
-local CRAB_TURN = 0.45 -- how far the thighs turn out when crouched (radians)
+local WALK_CROUCH = 1.35 -- hip drop while walking crouched
+local MIN_LEAN, MAX_LEAN = 0.45, 1.1 -- forward bend of the upper body behind a low wall (radians)
+local BLIND_STRAIGHTEN = 0.05 -- blind firing straightens the back this much (the head stays down)
+local KNEEL_THIGH = 0.15 -- the kneeling thigh leans back this much (radians)
+local FRONT_FOOT = 0.85 -- kneeling: the front foot is this far ahead of the hip
 
--- one foot over a step cycle: sideways offset along the travel direction and how high it lifts.
+-- one foot over a step cycle: offset along the travel direction and how high it lifts.
 -- First half: in the air, swinging from behind to ahead (eased). Second half: planted, sliding back.
 local function foot(ph: number, a: number): (number, number)
 	ph %= 2 * math.pi
@@ -58,7 +61,7 @@ local function foot(ph: number, a: number): (number, number)
 	return a - 2 * a * (ph - math.pi) / math.pi, 0
 end
 
--- where the palms go on the wall (sideways past the shoulder, height in torso heights from the
+-- where the palms go on a tall wall (sideways past the shoulder, height in torso heights from the
 -- upper torso's centre as posed)
 local LEAD_OUT, LEAD_UP = 1.05, 0.375
 local BACK_OUT, BACK_UP = 0.85, -0.325
@@ -154,6 +157,22 @@ local function solveArm(char: Model, prefix: string, parentCF: CFrame, hand: CFr
 	set(wr, (W:Inverse() * hand * wr.c1).Rotation, alpha)
 end
 
+
+-- a leg solved in the side view: the ankle `Dv` below the hip and `fwd` ahead of it, foot flat.
+-- Returns hip, knee and ankle angles about X.
+local function sagittal(L1: number, L2: number, Dv: number, fwd: number): (number, number, number)
+	local Dl = math.clamp(math.sqrt(Dv * Dv + fwd * fwd), math.abs(L1 - L2) + 0.05, L1 + L2 - 0.01)
+	local inner = math.acos(math.clamp((L1 * L1 + L2 * L2 - Dl * Dl) / (2 * L1 * L2), -1, 1))
+	local atHip = math.acos(math.clamp((L1 * L1 + Dl * Dl - L2 * L2) / (2 * L1 * Dl), -1, 1))
+	local hipX = atHip + math.atan2(fwd, Dv)
+	local knee = -(math.pi - inner)
+	return hipX, knee, -(hipX + knee)
+end
+
+local function lerp(a: number, b: number, t: number): number
+	return a + (b - a) * t
+end
+
 function CoverPose.isR15(char: Model): boolean
 	return char:FindFirstChild("UpperTorso") ~= nil
 end
@@ -172,83 +191,107 @@ function CoverPose.apply(char: Model, s: State)
 	local dir = side >= 0 and 1 or -1
 	local step = math.clamp(s.step, 0, 1)
 	local ph = s.phase
-
 	local low = math.clamp(s.low or 0, 0, 1)
+	local blind = math.clamp(s.blind or 0, 0, 1)
 	local root = rig(char, "LowerTorso", "Root")
 	local waist = rig(char, "UpperTorso", "Waist")
+	local neck = rig(char, "Head", "Neck")
 	local head = char:FindFirstChild("Head") :: BasePart?
 
-	-- how deep to crouch: enough to bring the head under the low wall's top
-	local crouch, hunch = MIN_CROUCH, 0
-	if low > 0 and root and waist and s.top then
-		local torso0 = hrp.CFrame * root.c0 * root.c1:Inverse() * waist.c0 * waist.c1:Inverse()
-		local headTop = torso0.Position.Y + upper.Size.Y / 2 + (head and head.Size.Y or 1.2) + 0.3
-		local want = headTop - (s.top - HEAD_BELOW)
-		crouch = math.clamp(want, MIN_CROUCH, MAX_CROUCH)
-		hunch = math.clamp((want - MAX_CROUCH) * 0.5, 0, 0.4)
-	end
-	local drop = 0.32 + (crouch - 0.32) * low
-
-	-- whole body: hips dropped (a little standing, deep crouched), turned a little toward the look
-	-- side; it rises a touch while a foot is in the air (twice per step cycle)
-	local bob = 0.05 * step * (1 - math.cos(2 * ph)) / 2
-	set(root, CFrame.new(0, -drop + bob, 0) * A(0, -0.08 * side, 0), alpha)
-	-- upper body leans back against the wall (hunches forward a bit behind very low walls) and twists
-	-- toward the side
-	set(waist, A(-0.04 + hunch * low, -0.12 * side, 0.03 * side), alpha)
-	-- head looks over the shoulder, toward the side
-	set(rig(char, "Head", "Neck"), A(0.05 + hunch * 0.5 * low, -1.0 * side, 0), alpha)
-
-	-- legs. Sliding = a chasse step toward the look side: the lead leg steps out while the other
-	-- stands, then the other one steps in next to it; the feet never cross. A foot on the ground moves
-	-- back exactly as fast as the body slides (no foot slip).
-	-- Standing: knees a little bent (fixed angles). Crouched: thigh/shin angles solved so the hips sit
-	-- `drop` lower with the feet flat on the ground, a little forward. Blended by `low`.
+	-- leg sizes from the joints (the parts' sizes overlap on some avatars)
 	local hip, knee, ankle = rig(char, "RightUpperLeg", "RightHip"), rig(char, "RightLowerLeg", "RightKnee"), rig(char, "RightFoot", "RightAnkle")
-	local footPart = char:FindFirstChild("RightFoot") :: BasePart?
 	local L1, L2 = 1, 1
 	if hip and knee and ankle then
 		L1 = (hip.c1:Inverse() * knee.c0).Position.Magnitude
 		L2 = (knee.c1:Inverse() * ankle.c0).Position.Magnitude
 	end
+	local footPart = char:FindFirstChild("RightFoot") :: BasePart?
+	local shin = char:FindFirstChild("RightLowerLeg") :: BasePart?
 	local footH = footPart and footPart.Size.Y / 2 or 0.2
+	local kneeR = shin and math.min(shin.Size.Z, shin.Size.X) / 2 or 0.3
+	local a = CoverPose.STEP_HALF
+	local bob = 0.05 * step * (1 - math.cos(2 * ph)) / 2 -- rises a touch while a foot is in the air
+
+	-- TALL WALL: hips dropped a little, turned toward the look side, upper body leaning back on the
+	-- wall and twisting toward the side, head looking over the shoulder
+	local tRoot = CFrame.new(0, -0.32 + bob, 0) * A(0, -0.08 * side, 0)
+	local tWaist = A(-0.04, -0.12 * side, 0.03 * side)
+	local tNeck = A(0.05, -1.0 * side, 0)
+
+	-- LOW WALL: how low to get. Kneeling puts the hips at thigh length + the knee's thickness; walking
+	-- crouched drops them WALK_CROUCH. Then bend forward until the head is under the wall's top.
+	local kneelHip = L1 * math.cos(KNEEL_THIGH) + kneeR
+	local kneelDrop = (L1 + L2 + footH) - kneelHip
+	local lowDrop = lerp(kneelDrop, math.min(WALK_CROUCH, L1 + L2 - 0.5), step)
+	local lean = MIN_LEAN
+	if s.top and root and waist then
+		local torso0 = hrp.CFrame * root.c0 * root.c1:Inverse() * waist.c0 * waist.c1:Inverse()
+		local headTop = torso0.Position.Y + upper.Size.Y / 2 + (head and head.Size.Y or 1.2) + 0.3
+		local need = headTop - (s.top - HEAD_BELOW) - lowDrop -- still to lose by bending forward
+		local reachUp = upper.Size.Y + (head and head.Size.Y or 1.2) -- waist to the top of the head
+		lean = math.clamp(math.acos(math.clamp(1 - need / reachUp, -1, 1)), MIN_LEAN, MAX_LEAN)
+	end
+	lean = math.max(lean - BLIND_STRAIGHTEN * blind, 0.2)
+	local lRoot = CFrame.new(0, -lowDrop + bob * 0.6, 0)
+	local lWaist = A(lean, 0, 0)
+	local lNeck = A(-lean * 0.75, 0, 0) -- the head keeps looking ahead
+
+	set(root, tRoot:Lerp(lRoot, low), alpha)
+	set(waist, tWaist:Lerp(lWaist, low), alpha)
+	set(neck, tNeck:Lerp(lNeck, low), alpha)
+
+	-- legs
+	local rLead = dir > 0
+	local wallLeg = rLead and "Right" or "Left" -- low wall: the leg on the wall side kneels
 	local standLever = (L1 + L2 + footH) * 0.8 -- knees bent: the foot is a bit closer to the hip
-	local a = CoverPose.STEP_HALF * (1 + (LOW_STEP - 1) * low)
-	local feetFwd = 0.1 + 0.4 * low
-	-- crouched it walks like a crab: thighs turned out (knees and toes point outward), a wide stance
-	local function leg(prefix: string, base: number, footPh: number, bias: number, turnOut: number)
+	local function leg(prefix: string, base: number, footPh: number, bias: number)
 		local off, lift = foot(footPh, a)
 		local l = lift * step
-		local lateral = dir * (off + bias) * step
-		-- standing
-		local sHipX, sKnee, sAnkle = 0.32 + l * 0.45, -0.55 - l * 0.85, 0.22 + l * 0.4
-		local sHipZ = base + lateral / standLever
-		-- crouched: two-bone solve in the side view (hip above, ankle below and slightly forward)
-		local Dv = math.max(L1 + L2 - crouch - l * 0.3, 0.1)
-		local Dl = math.clamp(math.sqrt(Dv * Dv + feetFwd * feetFwd), math.abs(L1 - L2) + 0.05, L1 + L2 - 0.01)
-		local inner = math.acos(math.clamp((L1 * L1 + L2 * L2 - Dl * Dl) / (2 * L1 * L2), -1, 1))
-		local atHip = math.acos(math.clamp((L1 * L1 + Dl * Dl - L2 * L2) / (2 * L1 * Dl), -1, 1))
-		local cHipX = atHip + math.atan2(feetFwd, Dv)
-		local cKnee = -(math.pi - inner)
-		local cAnkle = -(cHipX + cKnee) -- keeps the foot flat
-		local cHipZ = base + math.atan2(lateral, Dv + footH)
-		local hipX, kneeX, ankleX = sHipX + (cHipX - sHipX) * low, sKnee + (cKnee - sKnee) * low, sAnkle + (cAnkle - sAnkle) * low
-		local hipZ = sHipZ + (cHipZ - sHipZ) * low
-		set(rig(char, prefix .. "UpperLeg", prefix .. "Hip"), A(0, turnOut * low, 0) * A(hipX, 0, hipZ), alpha)
+		-- tall wall: chasse step sideways (`bias`: the lead foot works further out, the other further
+		-- in, so the feet close and open but never cross)
+		local tHipX, tKnee, tAnkle = 0.32 + l * 0.45, -0.55 - l * 0.85, 0.22 + l * 0.4
+		local tHipZ = base + dir * (off + bias) * step / standLever
+		-- low wall, still: kneeling
+		local kHipX, kKnee, kAnkle
+		if prefix == wallLeg then
+			kHipX, kKnee, kAnkle = -KNEEL_THIGH, -math.pi / 2 + KNEEL_THIGH, 0.35 -- knee down, toes tucked
+		else
+			kHipX, kKnee, kAnkle = sagittal(L1, L2, kneelHip - footH, FRONT_FOOT) -- foot flat in front
+		end
+		-- low wall, moving: crouched walk forward (along the wall)
+		local walkPh = prefix == wallLeg and ph or ph + math.pi
+		local wOff, wLift = foot(walkPh, a)
+		local wHipX, wKnee, wAnkle = sagittal(L1, L2, L1 + L2 - math.min(WALK_CROUCH, L1 + L2 - 0.5) - wLift * step * 0.3, 0.15 + wOff * step)
+		local lHipX, lKnee, lAnkle = lerp(kHipX, wHipX, step), lerp(kKnee, wKnee, step), lerp(kAnkle, wAnkle, step)
+		local lHipZ = prefix == "Right" and 0.1 or -0.1
+		local hipX, kneeX, ankleX = lerp(tHipX, lHipX, low), lerp(tKnee, lKnee, low), lerp(tAnkle, lAnkle, low)
+		local hipZ = lerp(tHipZ, lHipZ, low)
+		set(rig(char, prefix .. "UpperLeg", prefix .. "Hip"), A(hipX, 0, hipZ), alpha)
 		set(rig(char, prefix .. "LowerLeg", prefix .. "Knee"), A(kneeX, 0, 0), alpha)
 		set(rig(char, prefix .. "Foot", prefix .. "Ankle"), A(ankleX, 0, -hipZ), alpha)
 	end
-	local rLead = dir > 0
-	-- `bias`: while stepping the lead foot works a little further out and the other one a little
-	-- further in, so the feet come together (closed) and spread (open) but never cross
-	local spread = 0.07 + 0.2 * low -- crouched: wide crab stance
-	leg("Right", spread, rLead and ph or ph + math.pi, rLead and a or -a, -CRAB_TURN)
-	leg("Left", -spread, rLead and ph + math.pi or ph, rLead and -a or a, CRAB_TURN)
+	leg("Right", 0.07, rLead and ph or ph + math.pi, rLead and a or -a)
+	leg("Left", -0.07, rLead and ph + math.pi or ph, rLead and -a or a)
 
 	if s.armed or not root or not waist then
 		return -- the gun's IK owns the arms
 	end
 
+	-- LOW WALL arms: hanging down (undoing most of the forward bend) a little in front, swinging a
+	-- little against the steps
+	if low > 0.001 then
+		for _, prefix in { "Right", "Left" } do
+			local swing = math.sin(prefix == wallLeg and ph + math.pi or ph) * 0.3 * step
+			local out = prefix == "Right" and 0.1 or -0.1
+			set(rig(char, prefix .. "UpperArm", prefix .. "Shoulder"), A(-lean * 0.8 + 0.3 + swing, 0, out), alpha * low)
+			set(rig(char, prefix .. "LowerArm", prefix .. "Elbow"), A(0.45, 0, 0), alpha * low)
+			set(rig(char, prefix .. "Hand", prefix .. "Wrist"), A(0.1, 0, 0), alpha * low)
+		end
+	end
+	if low > 0.999 then
+		return
+	end
+	local tallAlpha = alpha * (1 - low)
 	-- the upper torso as posed this frame (forward kinematics from the root part)
 	local lower = hrp.CFrame * root.c0 * root.j.Transform * root.c1:Inverse()
 	local torso = lower * waist.c0 * waist.j.Transform * waist.c1:Inverse()
@@ -295,8 +338,8 @@ function CoverPose.apply(char: Model, s: State)
 	local backShoulder = torso:PointToWorldSpace(Vector3.new(-dir * sx, upper.Size.Y * 0.3, 0))
 	local leadPole = leadShoulder - up * 3 + n * 0.8
 	local backPole = backShoulder + right * -dir * 3 + n * 0.8
-	solveArm(char, leadPrefix, torso, leadHand, leadPole, alpha)
-	solveArm(char, backPrefix, torso, backHand, backPole, alpha)
+	solveArm(char, leadPrefix, torso, leadHand, leadPole, tallAlpha)
+	solveArm(char, backPrefix, torso, backHand, backPole, tallAlpha)
 end
 
 return CoverPose

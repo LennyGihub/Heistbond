@@ -261,7 +261,7 @@ local function takeHold(player: Player, char: Model, tool: Tool)
 	end
 end
 
-PoseRemote.OnServerEvent:Connect(function(player: Player, aiming: any, pitch: any, yaw: any)
+PoseRemote.OnServerEvent:Connect(function(player: Player, aiming: any, pitch: any, yaw: any, lift: any)
 	local h = holds[player]
 	if not h or typeof(aiming) ~= "boolean" or typeof(pitch) ~= "number" or pitch ~= pitch then
 		return
@@ -276,7 +276,10 @@ PoseRemote.OnServerEvent:Connect(function(player: Player, aiming: any, pitch: an
 	h.lastPose = now
 	local p = math.clamp(pitch, -1.3, 1.3)
 	local y = math.clamp(yaw, -GunPose.MAX_YAW, GunPose.MAX_YAW)
-	h.weld.C0 = GunPose.cframe(h.torso.Size, aiming and 1 or 0, p, y)
+	-- blind fire over low cover: the gun held up to 3 studs higher (world up, in torso space)
+	local up = if typeof(lift) == "number" and lift == lift then math.clamp(lift, 0, 3) else 0
+	local liftCF = if up > 0 then CFrame.new(h.torso.CFrame:VectorToObjectSpace(Vector3.yAxis * up)) else CFrame.identity
+	h.weld.C0 = liftCF * GunPose.cframe(h.torso.Size, aiming and 1 or 0, p, y)
 	local leftIK = h.weld.Part1 and h.weld.Part1:FindFirstChild("LeftHandIK") :: Attachment?
 	if leftIK then
 		leftIK.Position = aiming and GunPose.LEFT_AIM or GunPose.LEFT_READY
