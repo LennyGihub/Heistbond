@@ -21,7 +21,7 @@ local DECEL = 32 -- studs/s^2 to slow down
 local SHARP_TURN_SPEED = 0.35 -- speed kept while turning more than ~90 degrees
 
 local WALK_SPEED = 8 -- heavier, realistic walking pace (Roblox default is 16)
-local SPRINT_SPEED = 17 -- hold Left Shift
+local SPRINT_SPEED = 15 -- hold Left Shift
 local AIM_SPEED = 6 -- while aiming
 
 -- Roblox's official Rthro walk/run, and how much ground each covers per 1x playback (measured in Studio:
