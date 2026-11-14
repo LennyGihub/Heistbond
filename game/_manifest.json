@@ -68,8 +68,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/AimAssist.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.AimAssist",
    "class": "LocalScript",
-   "bytes": 4361,
-   "sha1": "eda3f07bc4667849c3d1d8dc8a0c47ac7bad74fe"
+   "bytes": 4383,
+   "sha1": "802a2ce3738a1d61abae8581249173ce60e7c88b"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",

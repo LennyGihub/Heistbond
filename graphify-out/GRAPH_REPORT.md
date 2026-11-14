@@ -1,7 +1,7 @@
 # Graph Report - Heistbond  (2026-11-14)
 
 ## Corpus Check
-- 17 files · ~21,523 words
+- 17 files · ~21,550 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1be438ea`
+- Built from commit: `98facb93`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -33,26 +33,26 @@
 ## God Nodes (most connected - your core abstractions)
 1. `fireOnce()` - 10 edges
 2. `renderStep()` - 10 edges
-3. `findWall()` - 7 edges
+3. `GunAnim.step()` - 7 edges
 4. `playReload()` - 7 edges
-5. `GunAnim.step()` - 7 edges
+5. `findWall()` - 7 edges
 6. `takeHold()` - 6 edges
 7. `GunAnim.stop()` - 6 edges
 8. `Heistbond - Roblox dev workspace` - 6 edges
-9. `live()` - 5 edges
-10. `buildHud()` - 5 edges
+9. `buildHud()` - 5 edges
+10. `unequip()` - 5 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `takeHold()` --calls--> `GunPose.cframe()`  [INFERRED]
-  game/ServerScriptService/Weapons/WeaponServer.server.luau → game/ReplicatedStorage/Weapons/GunPose.luau
-- `takeHold()` --calls--> `GunPose.torsoFor()`  [INFERRED]
-  game/ServerScriptService/Weapons/WeaponServer.server.luau → game/ReplicatedStorage/Weapons/GunPose.luau
 - `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 - `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 - `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.tracer()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `renderStep()` --calls--> `GunAnim.isReloading()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunAnim.luau
 
 ## Import Cycles
 - None detected.
@@ -119,7 +119,7 @@ _Questions this graph is uniquely positioned to answer:_
   _`renderStep()` has 5 INFERRED edges - model-reasoned connections that need verification._
 - **Why does `GunAnim.step()` connect `GunAnim.luau` to `GunClient.client.luau`?**
   _High betweenness centrality (0.026) - this node is a cross-community bridge._
-- **Are the 6 inferred relationships involving `playReload()` (e.g. with `GunAnim.isReloading()` and `GunAnim.startReload()`) actually correct?**
-  _`playReload()` has 6 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 2 inferred relationships involving `GunAnim.step()` (e.g. with `renderStep()` and `playReload()`) actually correct?**
   _`GunAnim.step()` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 6 inferred relationships involving `playReload()` (e.g. with `GunAnim.isReloading()` and `GunAnim.startReload()`) actually correct?**
+  _`playReload()` has 6 INFERRED edges - model-reasoned connections that need verification._

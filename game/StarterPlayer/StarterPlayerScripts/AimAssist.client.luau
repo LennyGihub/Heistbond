@@ -2,9 +2,10 @@
 -- Aim assist: when you start aiming (GunClient sets the character attribute Aiming), the crosshair
 -- locks onto the head of the NPC (CollectionService tag "NPC") nearest the screen centre - within
 -- LOCK_ANGLE of where you look, in range and in sight - and follows it while you keep aiming.
--- It lets go when you stop aiming, the target dies, or it stays out of sight for a moment.
--- Works by turning the camera (right after the camera scripts, before GunClient adds its shoulder
--- offset and recoil); the screen centre is the crosshair.
+-- It lets go when you stop aiming, the target dies, or it stays out of sight for a moment - and as
+-- soon as you fire: then it stays off until you let go of the aim and aim again.
+-- Works by turning the camera after every other camera script (camera module, GunClient's shoulder
+-- offset and recoil), from where it really is that frame; the screen centre is the crosshair.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
@@ -19,8 +20,8 @@ local LOST_AFTER = 0.5 -- seconds out of sight before letting go
 
 local target: Model? = nil
 local wasAiming = false
+local firedThisAim = false -- fired since the aim started: no more locking until the next aim
 local lostFor = 0
-local finalCamPos: Vector3? = nil -- where the camera really ended up last frame (after the offsets)
 
 local function headOf(m: Model): BasePart?
 	local hum = m:FindFirstChildOfClass("Humanoid")
@@ -48,7 +49,7 @@ local function visible(from: Vector3, head: BasePart, model: Model): boolean
 end
 
 local function acquire(cam: Camera): Model?
-	local from = finalCamPos or cam.CFrame.Position
+	local from = cam.CFrame.Position
 	local look = cam.CFrame.LookVector
 	local best: Model? = nil
 	local bestAngle = LOCK_ANGLE
@@ -69,7 +70,7 @@ local function acquire(cam: Camera): Model?
 	return best
 end
 
-RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 1, function(dt)
+RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 5, function(dt)
 	local char = player.Character
 	local cam = workspace.CurrentCamera
 	if not char or not cam then
@@ -77,6 +78,7 @@ RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 1, f
 	end
 	local aiming = char:GetAttribute("Aiming") == true and char:FindFirstChildOfClass("Tool") ~= nil
 	if aiming and not wasAiming then
+		firedThisAim = false
 		target = acquire(cam)
 		lostFor = 0
 		if IS_STUDIO then
@@ -86,6 +88,13 @@ RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 1, f
 		target = nil
 	end
 	wasAiming = aiming
+	-- firing (GunClient's BlockSprint = trigger held) hands the aim back to you for this aim
+	if aiming and char:GetAttribute("BlockSprint") == true then
+		firedThisAim = true
+	end
+	if firedThisAim then
+		target = nil
+	end
 	local t = target
 	if not t then
 		return
@@ -95,7 +104,7 @@ RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 1, f
 		target = nil
 		return
 	end
-	local from = finalCamPos or cam.CFrame.Position
+	local from = cam.CFrame.Position
 	if visible(from, head, t) then
 		lostFor = 0
 	else
@@ -106,20 +115,12 @@ RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 1, f
 		end
 	end
 	-- turn the camera so the crosshair (screen centre, from where the camera really ends up) sits on the head
-	local want = CFrame.lookAt(cam.CFrame.Position, cam.CFrame.Position + (head.Position - from).Unit)
+	local want = CFrame.lookAt(from, head.Position)
 	local a = math.min(1, dt * SNAP_RATE)
 	cam.CFrame = cam.CFrame:Lerp(want, a)
 	if IS_STUDIO then -- test info: what is locked and how far off the crosshair still is (degrees)
 		local off = math.deg(math.acos(math.clamp(cam.CFrame.LookVector:Dot((head.Position - from).Unit), -1, 1)))
 		player:SetAttribute("AimAssistInfo", string.format("%s %.2f", t.Name, off))
-	end
-end)
-
--- remember where the camera ends up once every script has moved it
-RunService:BindToRenderStep("AimAssistRecord", Enum.RenderPriority.Camera.Value + 6, function()
-	local cam = workspace.CurrentCamera
-	if cam then
-		finalCamPos = cam.CFrame.Position
 	end
 end)
 
