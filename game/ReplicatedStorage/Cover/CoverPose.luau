@@ -7,6 +7,7 @@
 -- knees a little bent, upper body and head turned toward `side` (+1 = the character's right,
 -- -1 = its left). Empty hands: both palms flat on the wall, placed by a two-bone IK - the hand on the
 -- look side out at shoulder height, the other one beside the hip; they sway a little with the steps.
+-- Behind a low wall (`low`) the character crouches so its head is just under the wall's top.
 -- While sliding along the wall the legs do a chasse step driven by `phase`. With a weapon in hand the
 -- arms are left to the gun's IK.
 --
@@ -22,6 +23,8 @@ export type State = {
 	armed: boolean,
 	wall: number?, -- measured distance from the root's centre to the wall behind it (nil = assume)
 	reach: number?, -- how far the wall goes on the look side, from the root (nil = far enough)
+	low: number, -- 0 = tall wall (standing), 1 = low wall (crouched behind it); smoothed
+	top: number?, -- world height of the low wall's top (sets how deep to crouch)
 }
 
 CoverPose.BACK_GAP = 0.08 -- gap between the back and the wall (CoverClient keeps it)
@@ -31,11 +34,22 @@ CoverPose.BACK_GAP = 0.08 -- gap between the back and the wall (CoverClient keep
 -- uses to advance the phase so planted feet don't slide
 CoverPose.STEP_HALF = 0.45
 CoverPose.STEP_LEN = 4 * CoverPose.STEP_HALF
+local LOW_STEP = 0.6 -- crouched steps are this much of the standing ones
+
+-- STEP_LEN for a given crouch amount (0 = standing, 1 = crouched)
+function CoverPose.stepLen(low: number): number
+	return CoverPose.STEP_LEN * (1 + (LOW_STEP - 1) * math.clamp(low, 0, 1))
+end
+
+-- crouching behind a low wall: the head goes HEAD_BELOW studs under the wall's top, the hips drop
+-- at most MAX_CROUCH studs (deeper than that the upper body hunches forward a little)
+local HEAD_BELOW = 0.25
+local MIN_CROUCH, MAX_CROUCH = 0.7, 1.45
+local CRAB_TURN = 0.45 -- how far the thighs turn out when crouched (radians)
 
 -- one foot over a step cycle: sideways offset along the travel direction and how high it lifts.
 -- First half: in the air, swinging from behind to ahead (eased). Second half: planted, sliding back.
-local function foot(ph: number): (number, number)
-	local a = CoverPose.STEP_HALF
+local function foot(ph: number, a: number): (number, number)
 	ph %= 2 * math.pi
 	if ph < math.pi then
 		local u = ph / math.pi
@@ -44,9 +58,10 @@ local function foot(ph: number): (number, number)
 	return a - 2 * a * (ph - math.pi) / math.pi, 0
 end
 
--- where the palms go on the wall (sideways past the shoulder, height in torso heights from the root)
-local LEAD_OUT, LEAD_UP = 1.05, 0.3
-local BACK_OUT, BACK_UP = 0.85, -0.4
+-- where the palms go on the wall (sideways past the shoulder, height in torso heights from the
+-- upper torso's centre as posed)
+local LEAD_OUT, LEAD_UP = 1.05, 0.375
+local BACK_OUT, BACK_UP = 0.85, -0.325
 
 local A = CFrame.Angles
 
@@ -158,43 +173,77 @@ function CoverPose.apply(char: Model, s: State)
 	local step = math.clamp(s.step, 0, 1)
 	local ph = s.phase
 
-	-- whole body: hips dropped a bit (slight crouch), turned a little toward the look side; it rises
-	-- a touch while a foot is in the air (twice per step cycle)
-	local bob = 0.05 * step * (1 - math.cos(2 * ph)) / 2
+	local low = math.clamp(s.low or 0, 0, 1)
 	local root = rig(char, "LowerTorso", "Root")
 	local waist = rig(char, "UpperTorso", "Waist")
-	set(root, CFrame.new(0, -0.32 + bob, 0) * A(0, -0.08 * side, 0), alpha)
-	-- upper body leans back against the wall and twists toward the side
-	set(waist, A(-0.04, -0.12 * side, 0.03 * side), alpha)
-	-- head looks over the shoulder, toward the side
-	set(rig(char, "Head", "Neck"), A(0.05, -1.0 * side, 0), alpha)
+	local head = char:FindFirstChild("Head") :: BasePart?
 
-	-- legs: knees bent (matches the dropped hips). Sliding = a chasse step toward the look side: the
-	-- lead leg steps out while the other stands, then the other one steps in next to it; the feet
-	-- never cross. A foot on the ground moves back exactly as fast as the body slides (no foot slip).
-	-- hip-to-sole length, from the joints (the parts' sizes overlap on some avatars)
-	local legLen = 2
+	-- how deep to crouch: enough to bring the head under the low wall's top
+	local crouch, hunch = MIN_CROUCH, 0
+	if low > 0 and root and waist and s.top then
+		local torso0 = hrp.CFrame * root.c0 * root.c1:Inverse() * waist.c0 * waist.c1:Inverse()
+		local headTop = torso0.Position.Y + upper.Size.Y / 2 + (head and head.Size.Y or 1.2) + 0.3
+		local want = headTop - (s.top - HEAD_BELOW)
+		crouch = math.clamp(want, MIN_CROUCH, MAX_CROUCH)
+		hunch = math.clamp((want - MAX_CROUCH) * 0.5, 0, 0.4)
+	end
+	local drop = 0.32 + (crouch - 0.32) * low
+
+	-- whole body: hips dropped (a little standing, deep crouched), turned a little toward the look
+	-- side; it rises a touch while a foot is in the air (twice per step cycle)
+	local bob = 0.05 * step * (1 - math.cos(2 * ph)) / 2
+	set(root, CFrame.new(0, -drop + bob, 0) * A(0, -0.08 * side, 0), alpha)
+	-- upper body leans back against the wall (hunches forward a bit behind very low walls) and twists
+	-- toward the side
+	set(waist, A(-0.04 + hunch * low, -0.12 * side, 0.03 * side), alpha)
+	-- head looks over the shoulder, toward the side
+	set(rig(char, "Head", "Neck"), A(0.05 + hunch * 0.5 * low, -1.0 * side, 0), alpha)
+
+	-- legs. Sliding = a chasse step toward the look side: the lead leg steps out while the other
+	-- stands, then the other one steps in next to it; the feet never cross. A foot on the ground moves
+	-- back exactly as fast as the body slides (no foot slip).
+	-- Standing: knees a little bent (fixed angles). Crouched: thigh/shin angles solved so the hips sit
+	-- `drop` lower with the feet flat on the ground, a little forward. Blended by `low`.
 	local hip, knee, ankle = rig(char, "RightUpperLeg", "RightHip"), rig(char, "RightLowerLeg", "RightKnee"), rig(char, "RightFoot", "RightAnkle")
 	local footPart = char:FindFirstChild("RightFoot") :: BasePart?
+	local L1, L2 = 1, 1
 	if hip and knee and ankle then
-		legLen = (hip.c1:Inverse() * knee.c0).Position.Magnitude + (knee.c1:Inverse() * ankle.c0).Position.Magnitude
-			+ (footPart and footPart.Size.Y / 2 or 0.2)
+		L1 = (hip.c1:Inverse() * knee.c0).Position.Magnitude
+		L2 = (knee.c1:Inverse() * ankle.c0).Position.Magnitude
 	end
-	legLen *= 0.8 -- the knees are bent, so the foot sits closer to the hip than a straight leg
-	-- `bias`: while stepping the lead foot works a little further out and the other one a little
-	-- further in, so the feet come together (closed) and spread (open) but never cross
-	local function leg(prefix: string, base: number, footPh: number, bias: number)
-		local off, lift = foot(footPh)
-		local hipZ = base + dir * (off + bias) * step / legLen -- +Z swings the foot toward the body's right
+	local footH = footPart and footPart.Size.Y / 2 or 0.2
+	local standLever = (L1 + L2 + footH) * 0.8 -- knees bent: the foot is a bit closer to the hip
+	local a = CoverPose.STEP_HALF * (1 + (LOW_STEP - 1) * low)
+	local feetFwd = 0.1 + 0.4 * low
+	-- crouched it walks like a crab: thighs turned out (knees and toes point outward), a wide stance
+	local function leg(prefix: string, base: number, footPh: number, bias: number, turnOut: number)
+		local off, lift = foot(footPh, a)
 		local l = lift * step
-		set(rig(char, prefix .. "UpperLeg", prefix .. "Hip"), A(0.32 + l * 0.45, 0, hipZ), alpha)
-		set(rig(char, prefix .. "LowerLeg", prefix .. "Knee"), A(-0.55 - l * 0.85, 0, 0), alpha)
-		set(rig(char, prefix .. "Foot", prefix .. "Ankle"), A(0.22 + l * 0.4, 0, -hipZ), alpha)
+		local lateral = dir * (off + bias) * step
+		-- standing
+		local sHipX, sKnee, sAnkle = 0.32 + l * 0.45, -0.55 - l * 0.85, 0.22 + l * 0.4
+		local sHipZ = base + lateral / standLever
+		-- crouched: two-bone solve in the side view (hip above, ankle below and slightly forward)
+		local Dv = math.max(L1 + L2 - crouch - l * 0.3, 0.1)
+		local Dl = math.clamp(math.sqrt(Dv * Dv + feetFwd * feetFwd), math.abs(L1 - L2) + 0.05, L1 + L2 - 0.01)
+		local inner = math.acos(math.clamp((L1 * L1 + L2 * L2 - Dl * Dl) / (2 * L1 * L2), -1, 1))
+		local atHip = math.acos(math.clamp((L1 * L1 + Dl * Dl - L2 * L2) / (2 * L1 * Dl), -1, 1))
+		local cHipX = atHip + math.atan2(feetFwd, Dv)
+		local cKnee = -(math.pi - inner)
+		local cAnkle = -(cHipX + cKnee) -- keeps the foot flat
+		local cHipZ = base + math.atan2(lateral, Dv + footH)
+		local hipX, kneeX, ankleX = sHipX + (cHipX - sHipX) * low, sKnee + (cKnee - sKnee) * low, sAnkle + (cAnkle - sAnkle) * low
+		local hipZ = sHipZ + (cHipZ - sHipZ) * low
+		set(rig(char, prefix .. "UpperLeg", prefix .. "Hip"), A(0, turnOut * low, 0) * A(hipX, 0, hipZ), alpha)
+		set(rig(char, prefix .. "LowerLeg", prefix .. "Knee"), A(kneeX, 0, 0), alpha)
+		set(rig(char, prefix .. "Foot", prefix .. "Ankle"), A(ankleX, 0, -hipZ), alpha)
 	end
 	local rLead = dir > 0
-	local h = CoverPose.STEP_HALF
-	leg("Right", 0.07, rLead and ph or ph + math.pi, rLead and h or -h)
-	leg("Left", -0.07, rLead and ph + math.pi or ph, rLead and -h or h)
+	-- `bias`: while stepping the lead foot works a little further out and the other one a little
+	-- further in, so the feet come together (closed) and spread (open) but never cross
+	local spread = 0.07 + 0.2 * low -- crouched: wide crab stance
+	leg("Right", spread, rLead and ph or ph + math.pi, rLead and a or -a, -CRAB_TURN)
+	leg("Left", -spread, rLead and ph + math.pi or ph, rLead and -a or a, CRAB_TURN)
 
 	if s.armed or not root or not waist then
 		return -- the gun's IK owns the arms
@@ -216,7 +265,11 @@ function CoverPose.apply(char: Model, s: State)
 	local function palm(prefix: string, lateral: number, height: number, fingers: Vector3): CFrame
 		local handPart = char:FindFirstChild(prefix .. "Hand") :: BasePart?
 		local thick = handPart and handPart.Size.X / 2 or 0.15
-		local pos = wallAt + right * lateral + Vector3.new(0, height, 0) + n * thick
+		local y = torso.Position.Y + height
+		if s.top then
+			y = math.min(y, s.top - 0.45) -- low wall: keep the hand on it, below its top
+		end
+		local pos = Vector3.new(wallAt.X, y, wallAt.Z) + right * lateral + n * thick
 		-- hand axes: -Y runs to the fingertips; the palm is the -X face (right hand) / +X face (left)
 		local Y = -fingers.Unit
 		local X = prefix == "Right" and n or -n

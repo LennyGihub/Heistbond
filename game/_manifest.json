@@ -5,8 +5,8 @@
    "file": "ReplicatedStorage/Cover/CoverPose.luau",
    "instance": "game.ReplicatedStorage.Cover.CoverPose",
    "class": "ModuleScript",
-   "bytes": 12164,
-   "sha1": "2b546fcfa73db18a3384836be6fde77688933388"
+   "bytes": 15142,
+   "sha1": "a1f894a6d23364eb9798989ba7a28c382828d895"
   },
   {
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",
@@ -61,8 +61,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.CoverClient",
    "class": "LocalScript",
-   "bytes": 12925,
-   "sha1": "f4c93385c585a73b42a509b4974e196c502cf132"
+   "bytes": 17277,
+   "sha1": "ff7d996e8f19f33d15f257003551d082e40ae491"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",

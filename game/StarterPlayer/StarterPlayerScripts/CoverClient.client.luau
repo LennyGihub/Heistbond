@@ -5,9 +5,11 @@
 --  * in cover, the left/right movement keys (Q/D on AZERTY, A/D on QWERTY) slide along the wall;
 --    forward/back do nothing. The character stops at the end of the wall instead of walking off it
 --  * the character looks toward the side it last moved to (or was going when it took cover)
+--  * low walls (from about knee to chest high): the character crouches behind them, just deep enough
+--    to hide its head, and slides along them more slowly
 --  * empty hands: palms pressed on the wall (CoverPose); with a gun the arms stay on the gun
---  * aiming (right mouse) leaves the cover pose to shoot; letting go goes back into cover if the wall
---    is still there. Jumping leaves cover.
+--  * aiming (right mouse) leaves the cover pose to shoot (behind a low wall: stand up and shoot over
+--    it); letting go goes back into cover if the wall is still there. Jumping leaves cover.
 -- HeavyMovement steps aside while the character attribute InCover is true (this script then moves
 -- and turns the character). Other players see the pose through the replicated attribute CoverSide.
 local Players = game:GetService("Players")
@@ -24,10 +26,14 @@ local UP = Vector3.yAxis
 
 local FIND_RANGE = 4.5 -- how far (studs, from the body's centre) a wall can be to take cover
 local COVER_SPEED = 3 -- sliding speed along the wall
+local COVER_SPEED_LOW = 1.8 -- crouched behind a low wall
+local WALL_RAY_H = 1.5 -- wall rays run this high above the ground (hits low walls and tall ones)
+local MIN_LOW = 2.2 -- a wall lower than this (studs above the ground) is too low to hide behind
+local TALL_H = 4.6 -- a wall at least this high is a tall wall (stand); lower = low wall (crouch)
+local CROUCH_CAM = -1.1 -- camera drop while crouched behind a low wall
 local COVER_ACCEL = 30
 local BACK_GAP = CoverPose.BACK_GAP -- gap between the back and the wall
 local TURN_RATE = math.rad(540)
-local SIDESTEP_LEN = CoverPose.STEP_LEN -- studs per chasse-step cycle (feet stay planted)
 local MAX_WALL_SLOPE = 0.35 -- |normal.Y| above this is a floor/ramp, not a wall
 local REACH_PROBES = { 2.6, 2.2, 1.8, 1.5, 1.25, 1.0 } -- where to look for the end of the wall
 local EDGE_STOP = 1.25 -- stop sliding when the wall ends this far to the side (shoulder at the corner)
@@ -40,6 +46,10 @@ local side = 1 -- +1 = look to the character's right, -1 = left
 local slide = 0 -- current speed along the wall (+ = toward the character's right)
 local lostFor = 0
 local airFor = 0
+local lowTop: number? = nil -- world height of the low wall's top, nil = tall wall
+local touchDist: number? = nil -- root-to-wall distance where the body touches the wall
+local blockedFor = 0
+local lastDist: number? = nil
 local lastSent: string? = nil
 
 local function flat(v: Vector3): Vector3
@@ -78,10 +88,34 @@ local function isWall(hit: RaycastResult?): boolean
 	return hit ~= nil and math.abs(hit.Normal.Y) < MAX_WALL_SLOPE
 end
 
--- nearest wall around the character that is at least chest high
-local function findWall(char: Model, root: BasePart): (Vector3?, Vector3?)
+-- height of the ground under the character (feet level)
+local function groundY(char: Model, root: BasePart): number
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	return root.Position.Y - ((hum and hum.HipHeight or 2) + root.Size.Y / 2)
+end
+
+-- where the wall rays start: the root's spot at WALL_RAY_H above the ground
+local function rayOrigin(char: Model, root: BasePart): Vector3
+	local p = root.Position
+	return Vector3.new(p.X, groundY(char, root) + WALL_RAY_H, p.Z)
+end
+
+-- top of the wall hit at `at` (normal `n`): world height if it is a low wall, nil if it is tall
+local function wallTop(params: RaycastParams, at: Vector3, n: Vector3, ground: number): number?
+	local from = Vector3.new(at.X, ground + TALL_H + 0.5, at.Z) - n * 0.15
+	local hit = workspace:Raycast(from, Vector3.new(0, -(TALL_H + 0.5 - WALL_RAY_H + 0.2), 0), params)
+	if hit and hit.Normal.Y > 0.5 and hit.Position.Y < ground + TALL_H then
+		return hit.Position.Y
+	end
+	return nil -- nothing above TALL_H... or we started inside a taller wall
+end
+
+-- nearest wall around the character that is high enough to hide behind:
+-- returns its normal and (low wall) its top's height, or nil
+local function findWall(char: Model, root: BasePart): (Vector3?, number?)
 	local params = rayParams(char)
-	local origin = root.Position
+	local origin = rayOrigin(char, root)
+	local ground = groundY(char, root)
 	local best: RaycastResult? = nil
 	local look = flat(root.CFrame.LookVector)
 	for i = 0, 23 do
@@ -95,13 +129,13 @@ local function findWall(char: Model, root: BasePart): (Vector3?, Vector3?)
 	if not best then
 		return nil, nil
 	end
-	local n = flat(best.Normal)
-	-- tall enough: the wall must also be there at chest height
-	local chest = workspace:Raycast(origin + Vector3.new(0, 1.2, 0), -n * (FIND_RANGE + 1), params)
-	if not isWall(chest) then
-		return nil, nil
+	local b = best :: RaycastResult
+	local n = flat(b.Normal)
+	local top = wallTop(params, b.Position, n, ground)
+	if top and top - ground < MIN_LOW then
+		return nil, nil -- too low to hide behind
 	end
-	return n, best.Position
+	return n, top
 end
 
 local function setLocalAttr(char: Model, on: boolean)
@@ -133,11 +167,13 @@ local function leave(why: string)
 end
 
 local function enter(char: Model, root: BasePart): boolean
-	local n = findWall(char, root)
+	local n, top = findWall(char, root)
 	if not n then
 		return false
 	end
 	normal = n
+	lowTop = top
+	touchDist, blockedFor, lastDist = nil, 0, nil
 	-- look the way the character was going: its velocity, else where it faced
 	local right = normal:Cross(UP)
 	local v = flat(root.AssemblyLinearVelocity)
@@ -208,12 +244,14 @@ local function step(dt: number)
 		setLocalAttr(char, false)
 		send(false)
 	elseif not aiming and suspended then
-		local n = findWall(char, root)
+		local n, top = findWall(char, root)
 		if not n then
 			leave("nowall-after-aim")
 			return
 		end
 		normal = n
+		lowTop = top
+		touchDist, blockedFor, lastDist = nil, 0, nil
 		suspended = false
 		slide = 0
 		setLocalAttr(char, true)
@@ -224,7 +262,7 @@ local function step(dt: number)
 	end
 
 	local params = rayParams(char)
-	local pos = root.Position
+	local pos = rayOrigin(char, root)
 	local hit = workspace:Raycast(pos, -normal * (FIND_RANGE + 0.5), params)
 	if not isWall(hit) then
 		lostFor += dt
@@ -242,6 +280,17 @@ local function step(dt: number)
 	end
 	local right = normal:Cross(UP)
 	local dist = (pos - h.Position):Dot(normal)
+	-- a low wall or a tall one here? (it can change while sliding along)
+	local ground = groundY(char, root)
+	local top = wallTop(params, h.Position, n, ground)
+	if top and top - ground < MIN_LOW then
+		lostFor += dt -- slid along to a part too low to hide behind
+		if lostFor > 0.25 then
+			leave("too-low")
+		end
+		return
+	end
+	lowTop = top
 
 	-- left/right input along the wall (camera-relative, so the key that points that way on screen)
 	local input = hum.MoveDirection
@@ -260,7 +309,7 @@ local function step(dt: number)
 		local probe = pos + right * dir * EDGE_STOP
 		local ahead = workspace:Raycast(probe, -normal * (dist + 1.2), params)
 		if isWall(ahead) then
-			want = dir * COVER_SPEED * math.min(1, math.abs(along))
+			want = dir * (lowTop and COVER_SPEED_LOW or COVER_SPEED) * math.min(1, math.abs(along))
 		end
 	end
 	if want > slide then
@@ -269,9 +318,27 @@ local function step(dt: number)
 		slide = math.max(want, slide - COVER_ACCEL * dt)
 	end
 
-	-- stay pressed against the wall
-	local err = dist - (backDepth(char) + BACK_GAP)
-	local push = math.clamp(-err * 10, -8, 8)
+	-- get the back to the wall, then stop pushing: the turned shoulders often touch it before the root
+	-- reaches its ideal spot, and pushing on into that contact makes the body skid sideways. So once
+	-- the body stops getting closer while pushing, that distance becomes the target.
+	local ideal = backDepth(char) + BACK_GAP
+	if touchDist and dist < (touchDist :: number) - 0.05 then
+		touchDist = math.max(dist, ideal) -- got closer (the wall changed): keep the closer spot
+	end
+	local err = dist - (touchDist or ideal)
+	local push = 0
+	if err > 0.06 then
+		push = -math.min(err * 10, 8)
+		-- real approach speed from the distance itself (the reported velocity keeps showing the push)
+		local approach = if lastDist then ((lastDist :: number) - dist) / math.max(dt, 1e-3) else 1
+		blockedFor = if approach < 0.3 then blockedFor + dt else 0
+		if blockedFor > 0.2 then
+			touchDist, blockedFor = dist, 0
+		end
+	else
+		blockedFor = 0
+	end
+	lastDist = dist
 	local vel = right * slide + normal * push
 	hum.WalkSpeed = 15
 	hum:Move(vel / hum.WalkSpeed, false)
@@ -286,6 +353,25 @@ local function step(dt: number)
 	send(true)
 end
 RunService:BindToRenderStep("CoverMove", Enum.RenderPriority.Input.Value + 1, step)
+
+-- crouched behind a low wall: the camera goes down with the body
+local camDrop = 0
+RunService:BindToRenderStep("CoverCamera", Enum.RenderPriority.Camera.Value - 1, function(dt)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return
+	end
+	local want = (inCover and not suspended and lowTop) and CROUCH_CAM or 0
+	if want == 0 and camDrop == 0 then
+		return
+	end
+	camDrop += (want - camDrop) * math.min(1, dt * 8)
+	if math.abs(camDrop - want) < 0.01 then
+		camDrop = want
+	end
+	hum.CameraOffset = Vector3.new(hum.CameraOffset.X, camDrop, hum.CameraOffset.Z)
+end)
 
 -- pose of every character in cover (after the animations, before physics)
 type PoseState = CoverPose.State
@@ -311,7 +397,7 @@ RunService.Stepped:Connect(function(_, dt)
 			if not on then
 				continue
 			end
-			ps = { alpha = 0, side = wantSide, phase = 0, step = 0, armed = false } :: PoseState
+			ps = { alpha = 0, side = wantSide, phase = 0, step = 0, armed = false, low = 0 } :: PoseState
 			poses[char] = ps
 		end
 		local p = ps :: PoseState
@@ -319,24 +405,33 @@ RunService.Stepped:Connect(function(_, dt)
 		if on then
 			p.side += (wantSide - p.side) * math.min(1, dt * 8)
 		end
+		p.armed = char:FindFirstChildOfClass("Tool") ~= nil
+		local params = rayParams(char)
+		-- where the wall really is behind the back (the twisted shoulders can keep the body off it), and
+		-- whether it is a low one (crouch) - measured the same way for every player
+		local back = flat(root.CFrame.LookVector)
+		local ground = groundY(char, root)
+		local origin = rayOrigin(char, root)
+		local wallHit = workspace:Raycast(origin, -back * 2.5, params)
+		p.wall = if wallHit then wallHit.Distance else nil
+		if wallHit and on then
+			p.top = wallTop(params, wallHit.Position, back, ground)
+		end
+		p.low += ((on and p.top) and 1 - p.low or -p.low) * math.min(1, dt * 8)
 		-- sidestep from the real sliding speed (works the same for other players)
 		local v = root.AssemblyLinearVelocity
 		local sideways = math.abs(v:Dot(root.CFrame.RightVector))
-		p.phase = (p.phase + sideways * dt / SIDESTEP_LEN * math.pi * 2) % (math.pi * 2)
-		p.step += (math.clamp(sideways / COVER_SPEED, 0, 1) - p.step) * math.min(1, dt * 10)
-		p.armed = char:FindFirstChildOfClass("Tool") ~= nil
-		-- where the wall really is behind the back (the twisted shoulders can keep the body off it)
-		local back = flat(root.CFrame.LookVector)
-		local wallHit = workspace:Raycast(root.Position, -back * 2.5, rayParams(char))
-		p.wall = if wallHit then wallHit.Distance else nil
+		local speed = COVER_SPEED + (COVER_SPEED_LOW - COVER_SPEED) * p.low
+		p.phase = (p.phase + sideways * dt / CoverPose.stepLen(p.low) * math.pi * 2) % (math.pi * 2)
+		p.step += (math.clamp(sideways / speed, 0, 1) - p.step) * math.min(1, dt * 10)
 		-- how far the wall reaches on the look side, at hand height (the lead hand stays on it)
 		p.reach = nil
 		if wallHit then
-			local params = rayParams(char)
 			local lookDir = root.CFrame.RightVector * (p.side >= 0 and 1 or -1)
 			local depth = wallHit.Distance + 0.6
+			local y = if p.top then math.min(root.Position.Y + 0.5, p.top - 0.5) else root.Position.Y + 0.5
 			for _, d in REACH_PROBES do
-				local o = root.Position + lookDir * d + Vector3.new(0, 0.5, 0)
+				local o = Vector3.new(root.Position.X, y, root.Position.Z) + lookDir * d
 				if workspace:Raycast(o, -back * depth, params) then
 					p.reach = if d == REACH_PROBES[1] then nil else d
 					break
@@ -373,5 +468,6 @@ end
 
 player.CharacterAdded:Connect(function()
 	inCover, suspended, slide = false, false, 0
+	lowTop, camDrop = nil, 0
 	lastSent = nil
 end)
