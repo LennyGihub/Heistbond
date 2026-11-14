@@ -18,51 +18,51 @@
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/GunAnim.luau": {
-    "mtime": 1794663862.5926566,
-    "seen": 1794663865.1917508,
+    "mtime": 1794664322.1825585,
+    "seen": 1794664324.6884797,
     "ast_hash": "5279e033e61b0d5efa4f9c21751a256e",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/GunPose.luau": {
-    "mtime": 1794663862.8732378,
-    "seen": 1794663865.1917555,
+    "mtime": 1794664322.4442286,
+    "seen": 1794664324.6884825,
     "ast_hash": "e2ee13fa17e26c69db92f9b0a863feb7",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/WeaponConfig.luau": {
-    "mtime": 1794663863.1431687,
-    "seen": 1794663865.1917648,
+    "mtime": 1794664322.7301824,
+    "seen": 1794664324.6884842,
     "ast_hash": "085c79c66d26aaf070de10f51c6b1766",
     "semantic_hash": "085c79c66d26aaf070de10f51c6b1766"
   },
   "game/ReplicatedStorage/Weapons/WeaponFx.luau": {
-    "mtime": 1794663863.409516,
-    "seen": 1794663865.1917677,
+    "mtime": 1794664322.9961417,
+    "seen": 1794664324.6884859,
     "ast_hash": "c0fce70fa9b39b2896901b98a9f77a29",
     "semantic_hash": "c0fce70fa9b39b2896901b98a9f77a29"
   },
   "game/ServerScriptService/Weapons/WeaponServer.server.luau": {
-    "mtime": 1794663863.678895,
-    "seen": 1794663865.1917698,
+    "mtime": 1794664323.2854426,
+    "seen": 1794664324.6884868,
     "ast_hash": "c1f795abe91637d52a37889d6d1c2102",
     "semantic_hash": ""
   },
   "game/StarterPack/M4A1/GunClient.client.luau": {
-    "mtime": 1794663864.0073688,
-    "seen": 1794663865.191772,
-    "ast_hash": "5dc2a161e622939861789a227d1ecd28",
+    "mtime": 1794664323.6117077,
+    "seen": 1794664324.688488,
+    "ast_hash": "92d823af179065399410752342418d13",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau": {
-    "mtime": 1794663864.2739089,
-    "seen": 1794663865.1917741,
+    "mtime": 1794664323.8777025,
+    "seen": 1794664324.6884892,
     "ast_hash": "73e7db6ca8bac2a0a93a0f4d7556d75f",
     "semantic_hash": "73e7db6ca8bac2a0a93a0f4d7556d75f"
   },
   "game/_manifest.json": {
-    "mtime": 1794663864.2741666,
-    "seen": 1794663865.191776,
-    "ast_hash": "1d37700bc1d8abe4498f1835ae6fed5b",
+    "mtime": 1794664323.8779032,
+    "seen": 1794664324.6884904,
+    "ast_hash": "4f1894a46e132b6727ebb5d52b370ab8",
     "semantic_hash": ""
   }
 }

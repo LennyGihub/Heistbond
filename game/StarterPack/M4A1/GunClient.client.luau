@@ -27,8 +27,8 @@ local gameSettings = UserSettings():GetService("UserGameSettings")
 
 -- camera offsets in camera space (right, up); aiming also pulls the camera in close
 local HIP_OFFSET = Vector2.new(1.6, 0.35)
-local AIM_OFFSET = Vector2.new(3.1, 0.45)
-local AIM_DISTANCE = 6.5 -- studs from the character while aiming
+local AIM_OFFSET = Vector2.new(2.4, 1.1) -- over the (bladed) right shoulder, not behind it
+local AIM_DISTANCE = 8 -- studs from the character while aiming
 local FACE_AFTER_SHOT = 0.6 -- seconds the character keeps facing the camera after hip fire
 local BASE_FOV = 70
 -- first person: where the gun's handle sits relative to the camera
