@@ -11,5 +11,6 @@
   "9": "CoverClient.client.luau",
   "10": "Crosshair.client.luau",
   "11": "CoverPose.luau",
-  "12": "CoverServer.server.luau"
+  "12": "CoverServer.server.luau",
+  "13": "GunPose.luau"
 }

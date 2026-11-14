@@ -67,6 +67,13 @@ local sentAiming, sentPitch, sentYaw = false, 0, 0
 local sentBlind = false -- blind fire over low cover: last state told to the server
 local blindHold: CFrame? = nil -- blind fire: the gun's hold this frame (torso space)
 local BLIND_ROLL = math.rad(90) -- blind fire: the gun is held on its side (top to the left)
+-- blind fire recoil (visual): every shot throws the gun hard back along the barrel and twists it
+-- about the barrel (neither changes where it points), and tips the muzzle only a little (up/aside),
+-- so the shots still visibly leave along the barrel. Snaps back fast; a burst shakes the gun.
+local BLIND_KICK_BACK, BLIND_KICK_UP = 0.45, math.rad(4) -- per shot
+local BLIND_KICK_SIDE, BLIND_KICK_ROLL = math.rad(2), math.rad(10) -- per shot, random either way
+local BLIND_SPREAD = 3 -- extra spread (degrees), about as much as the muzzle wobbles
+local blindKick = { back = 0, up = 0, side = 0, roll = 0 }
 local kick = Vector2.zero -- gun recoil (back, pitch up), springs back to zero
 local sway = Vector2.zero -- first-person weapon sway from camera turning
 local lastLook: Vector3? = nil
@@ -265,7 +272,8 @@ local function fireOnce()
 	local target = aimTarget(params)
 	local dir = (target - origin).Unit
 	-- random direction inside a cone (uniform over the disc)
-	local spread = math.rad((aiming and cfg.AimSpread or cfg.HipSpread) + bloom) * math.sqrt(math.random())
+	local blind = blindHold ~= nil
+	local spread = math.rad((aiming and cfg.AimSpread or cfg.HipSpread) + bloom + (blind and BLIND_SPREAD or 0)) * math.sqrt(math.random())
 	dir = (CFrame.lookAt(Vector3.zero, dir) * CFrame.Angles(0, 0, math.random() * math.pi * 2) * CFrame.Angles(spread, 0, 0)).LookVector
 
 	FireRemote:FireServer(origin, dir)
@@ -296,6 +304,13 @@ local function fireOnce()
 	end
 	bloom = math.min(bloom + 0.22, 2.5)
 	kick += Vector2.new(aiming and 0.06 or 0.1, math.rad(aiming and 1.6 or 2.8))
+	if blind then
+		local bk = blindKick
+		bk.back = math.min(bk.back + BLIND_KICK_BACK * (0.8 + math.random() * 0.4), 0.9)
+		bk.up = math.min(bk.up + BLIND_KICK_UP * (0.7 + math.random() * 0.6), math.rad(10))
+		bk.side = math.clamp(bk.side + BLIND_KICK_SIDE * (math.random() * 2 - 1), -math.rad(5), math.rad(5))
+		bk.roll = math.clamp(bk.roll + BLIND_KICK_ROLL * (math.random() * 2 - 1), -math.rad(18), math.rad(18))
+	end
 end
 
 local function startFiring()
@@ -522,6 +537,11 @@ local function renderStep(dt: number)
 	cam.CFrame *= CFrame.Angles(rd.X, rd.Y, 0)
 	bloom = math.max(0, bloom - dt * 3)
 	kick *= math.exp(-dt * 14)
+	do
+		local fade = math.exp(-dt * 11)
+		local bk = blindKick
+		bk.back, bk.up, bk.side, bk.roll = bk.back * fade, bk.up * fade, bk.side * fade, bk.roll * fade
+	end
 	local kickCF = CFrame.new(0, 0, kick.X) * CFrame.Angles(kick.Y, 0, 0)
 
 	-- third person: over-the-shoulder offset in camera space
@@ -611,7 +631,11 @@ local function renderStep(dt: number)
 			local fwd = if flatD.Magnitude > 0.1 then flatD.Unit else torso.CFrame.LookVector
 			local tilt = math.clamp(math.atan2(d.Y, math.max(flatD.Magnitude, 0.1)), -0.3, 0.6)
 			local look = fwd * math.cos(tilt) + Vector3.yAxis * math.sin(tilt)
-			blindHold = torso.CFrame:ToObjectSpace(GunPose.handleAt(blindGrip, look, BLIND_ROLL)) * kickCF
+			-- recoil, in the aim's own frame: pushed back along the barrel, muzzle thrown up and aside,
+			-- twisted about the barrel
+			local bk = blindKick
+			local aimCF = CFrame.lookAt(blindGrip, blindGrip + look) * CFrame.new(0, 0, bk.back) * CFrame.Angles(bk.up, bk.side, 0)
+			blindHold = torso.CFrame:ToObjectSpace(GunPose.handleFrom(aimCF, BLIND_ROLL + bk.roll))
 			weld.C0 = blindHold :: CFrame
 		elseif weld and torso then
 			weld.C0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
@@ -695,6 +719,7 @@ local function unequip()
 	destroyViewArms()
 	wasFirstPerson, lastLook = false, nil
 	kick, sway = Vector2.zero, Vector2.zero
+	blindKick.back, blindKick.up, blindKick.side, blindKick.roll = 0, 0, 0, 0
 	sprintAlpha = 0
 	recoilTarget, recoilCur, recoilApplied = Vector2.zero, Vector2.zero, Vector2.zero
 	poseYaw, posePitch, holdAlpha = 0, 0, 0
@@ -727,6 +752,27 @@ local function unequip()
 	gui, ammoLabel, reserveLabel, hitmarker = nil, nil, nil, nil
 	humanoid = nil
 	aimAlpha = 0
+end
+
+-- Studio-only test hook: set tool attribute TestFire to N to fire an N-round burst (tests can't click)
+if IS_STUDIO then
+	tool:GetAttributeChangedSignal("TestFire"):Connect(function()
+		local n = tool:GetAttribute("TestFire")
+		if typeof(n) ~= "number" or n <= 0 then
+			return
+		end
+		tool:SetAttribute("TestFire", nil)
+		task.spawn(function()
+			for _ = 1, math.floor(n) do
+				if not equipped then
+					break
+				end
+				lastShot = os.clock()
+				fireOnce()
+				task.wait(60 / cfg.RPM)
+			end
+		end)
+	end)
 end
 
 tool.Equipped:Connect(function()

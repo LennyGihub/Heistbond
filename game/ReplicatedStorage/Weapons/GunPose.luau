@@ -55,7 +55,12 @@ end
 -- rolled `roll` radians about the barrel (0 = upright, +pi/2 = on its side with the top to the left).
 -- Used for blind fire over low cover.
 function GunPose.handleAt(grip: Vector3, look: Vector3, roll: number?): CFrame
-	return CFrame.lookAt(grip, grip + look) * CFrame.Angles(0, 0, roll or 0) * CFrame.new(-GRIP)
+	return GunPose.handleFrom(CFrame.lookAt(grip, grip + look), roll)
+end
+
+-- same from a full frame: `aim` is at the pistol grip with its LookVector along the barrel
+function GunPose.handleFrom(aim: CFrame, roll: number?): CFrame
+	return aim * CFrame.Angles(0, 0, roll or 0) * CFrame.new(-GRIP)
 end
 
 return GunPose
