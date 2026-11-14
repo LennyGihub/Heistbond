@@ -5,8 +5,8 @@
    "file": "ReplicatedStorage/Cover/CoverPose.luau",
    "instance": "game.ReplicatedStorage.Cover.CoverPose",
    "class": "ModuleScript",
-   "bytes": 17170,
-   "sha1": "e8adf8fbd3299cc6fde2fb1926120ad117c6208e"
+   "bytes": 17399,
+   "sha1": "c884a432ce97d3d362e5a5cf333f24f27045ea59"
   },
   {
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",

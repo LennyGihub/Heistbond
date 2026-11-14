@@ -1,7 +1,7 @@
 # Graph Report - Heistbond  (2026-11-14)
 
 ## Corpus Check
-- 14 files · ~17,259 words
+- 14 files · ~17,307 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `64c1753e`
+- Built from commit: `aeddfaf8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,9 +30,9 @@
 ## God Nodes (most connected - your core abstractions)
 1. `fireOnce()` - 10 edges
 2. `renderStep()` - 10 edges
-3. `findWall()` - 7 edges
-4. `GunAnim.step()` - 7 edges
-5. `playReload()` - 7 edges
+3. `GunAnim.step()` - 7 edges
+4. `playReload()` - 7 edges
+5. `findWall()` - 7 edges
 6. `takeHold()` - 6 edges
 7. `GunAnim.stop()` - 6 edges
 8. `Heistbond - Roblox dev workspace` - 6 edges

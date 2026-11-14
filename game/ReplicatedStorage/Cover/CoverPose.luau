@@ -13,12 +13,13 @@
 -- root to face along the wall), upper body bent forward just enough to keep the head under the
 -- wall's top. Still: down on the wall-side knee, the other foot flat in front. Moving: a crouched
 -- walk. Empty hands hang in front and swing a little with the steps. `blind` (blind fire over the
--- wall) barely straightens the back: the head stays down, the shouldered gun is lifted over the top.
+-- wall) straightens the back a little and tucks the head; the shouldered gun is lifted over the top.
 --
 -- With a weapon in hand the arms are left to the gun's IK.
 --
--- Joint axes (R15 joint frames are body-aligned): +X swings a hanging limb forward (and bends the
--- upper body forward at the waist), +Z moves it toward the body's +X (right), +Y turns left.
+-- Joint axes (R15 joint frames are body-aligned): +X swings a hanging limb forward but tips an
+-- upward part (upper body at the waist, head at the neck) backward; +Z moves a hanging limb toward
+-- the body's +X (right); +Y turns left.
 local CoverPose = {}
 
 export type State = {
@@ -46,7 +47,8 @@ CoverPose.STEP_LEN = 4 * CoverPose.STEP_HALF
 local HEAD_BELOW = 0.25
 local WALK_CROUCH = 1.35 -- hip drop while walking crouched
 local MIN_LEAN, MAX_LEAN = 0.45, 1.1 -- forward bend of the upper body behind a low wall (radians)
-local BLIND_STRAIGHTEN = 0.05 -- blind firing straightens the back this much (the head stays down)
+local BLIND_STRAIGHTEN = 0.1 -- blind firing straightens the back this much, so the hands reach the raised gun
+local BLIND_DUCK = 0.5 -- ...and tucks the head down this much, so it stays under the top
 local KNEEL_THIGH = 0.15 -- the kneeling thigh leans back this much (radians)
 local FRONT_FOOT = 0.85 -- kneeling: the front foot is this far ahead of the hip
 
@@ -215,7 +217,7 @@ function CoverPose.apply(char: Model, s: State)
 	-- TALL WALL: hips dropped a little, turned toward the look side, upper body leaning back on the
 	-- wall and twisting toward the side, head looking over the shoulder
 	local tRoot = CFrame.new(0, -0.32 + bob, 0) * A(0, -0.08 * side, 0)
-	local tWaist = A(-0.04, -0.12 * side, 0.03 * side)
+	local tWaist = A(0.04, -0.12 * side, 0.03 * side)
 	local tNeck = A(0.05, -1.0 * side, 0)
 
 	-- LOW WALL: how low to get. Kneeling puts the hips at thigh length + the knee's thickness; walking
@@ -233,8 +235,8 @@ function CoverPose.apply(char: Model, s: State)
 	end
 	lean = math.max(lean - BLIND_STRAIGHTEN * blind, 0.2)
 	local lRoot = CFrame.new(0, -lowDrop + bob * 0.6, 0)
-	local lWaist = A(lean, 0, 0)
-	local lNeck = A(-lean * 0.75, 0, 0) -- the head keeps looking ahead
+	local lWaist = A(-lean, 0, 0) -- bent forward (-X tips the upper body forward)
+	local lNeck = A(lean * 0.75 - BLIND_DUCK * blind, 0, 0) -- the head tips back up to keep looking ahead
 
 	set(root, tRoot:Lerp(lRoot, low), alpha)
 	set(waist, tWaist:Lerp(lWaist, low), alpha)
@@ -283,7 +285,7 @@ function CoverPose.apply(char: Model, s: State)
 		for _, prefix in { "Right", "Left" } do
 			local swing = math.sin(prefix == wallLeg and ph + math.pi or ph) * 0.3 * step
 			local out = prefix == "Right" and 0.1 or -0.1
-			set(rig(char, prefix .. "UpperArm", prefix .. "Shoulder"), A(-lean * 0.8 + 0.3 + swing, 0, out), alpha * low)
+			set(rig(char, prefix .. "UpperArm", prefix .. "Shoulder"), A(lean * 0.8 + 0.3 + swing, 0, out), alpha * low)
 			set(rig(char, prefix .. "LowerArm", prefix .. "Elbow"), A(0.45, 0, 0), alpha * low)
 			set(rig(char, prefix .. "Hand", prefix .. "Wrist"), A(0.1, 0, 0), alpha * low)
 		end
