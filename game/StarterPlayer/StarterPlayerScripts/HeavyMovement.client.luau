@@ -7,7 +7,8 @@
 --    backwards plays the walk cycle in reverse instead of moonwalking
 --  * Rthro walk/run animations whose playback speed is set from the real ground speed every frame,
 --    so the feet never slide; Left Shift sprints
---  * Ctrl (gamepad B) toggles a sneaky crouch-walk: slower, its own animation, crouched when standing still
+--  * Ctrl (gamepad B) toggles a sneaky crouch-walk: slower, its own animation, a crouched idle when still
+--  * custom jump (timed to the real time in the air) and a landing absorb
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -42,6 +43,9 @@ local runStride = RUN_STRIDE
 local ContextActionService = game:GetService("ContextActionService")
 local sneaking = false
 local sneakTrack: AnimationTrack? = nil
+local sneakIdleTrack: AnimationTrack? = nil
+local jumpTrack: AnimationTrack? = nil
+local landTrack: AnimationTrack? = nil
 local sneakStride = 1.67
 local RUN_BLEND_FROM, RUN_BLEND_TO = 11, 15 -- ground speeds where walk blends into run
 
@@ -80,35 +84,78 @@ local function useRthro(char: Model)
 	end
 end
 
--- the sneak animation: published Animations.Sneak, or in Studio the unpublished Animations.SneakClip
-local function loadSneak(char: Model)
-	sneakTrack = nil
-	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid?
-	local animator = hum and hum:WaitForChild("Animator", 10) :: Animator?
+-- custom animations: the published Animations.<slot> (Animation with an id), or in Studio playtests the
+-- unpublished clip Animations.<slot>Clip
+local function loadTrack(animator: Animator, slotName: string, priority: Enum.AnimationPriority, looped: boolean): (AnimationTrack?, number?)
 	local anims = ReplicatedStorage:FindFirstChild("Animations")
-	if not animator or not anims then
-		return
+	if not anims then
+		return nil, nil
 	end
-	local slot = anims:FindFirstChild("Sneak")
-	local clip = anims:FindFirstChild("SneakClip")
+	local slot = anims:FindFirstChild(slotName)
+	local clip = anims:FindFirstChild(slotName .. "Clip")
 	local id: string? = nil
+	local stride: number? = nil
 	if slot and slot:IsA("Animation") and slot.AnimationId ~= "" then
 		id = slot.AnimationId
-		sneakStride = (slot:GetAttribute("Stride") :: number?) or sneakStride
+		stride = slot:GetAttribute("Stride") :: number?
 	elseif IS_STUDIO and clip and clip:IsA("KeyframeSequence") then
 		id = KeyframeSequenceProvider:RegisterKeyframeSequence(clip)
-		sneakStride = (clip:GetAttribute("Stride") :: number?) or sneakStride
+		stride = clip:GetAttribute("Stride") :: number?
 	end
 	if not id then
-		return
+		return nil, nil
 	end
 	local a = Instance.new("Animation")
 	a.AnimationId = id
 	local track = animator:LoadAnimation(a)
-	-- above the walk/run (Movement) so sneaking fully replaces the walk instead of mixing with it
-	track.Priority = Enum.AnimationPriority.Action
-	track.Looped = true
-	sneakTrack = track
+	track.Priority = priority
+	track.Looped = looped
+	return track, stride
+end
+
+local function loadSneak(char: Model)
+	sneakTrack, sneakIdleTrack, jumpTrack, landTrack = nil, nil, nil, nil
+	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid?
+	local animator = hum and hum:WaitForChild("Animator", 10) :: Animator?
+	if not hum or not animator then
+		return
+	end
+	-- sneaking sits above the walk/run (Movement) so it fully replaces the walk
+	local stride
+	sneakTrack, stride = loadTrack(animator, "Sneak", Enum.AnimationPriority.Action, true)
+	sneakStride = stride or sneakStride
+	sneakIdleTrack = loadTrack(animator, "SneakIdle", Enum.AnimationPriority.Action, true)
+	-- jump/land sit above sneaking too
+	jumpTrack = loadTrack(animator, "Jump", Enum.AnimationPriority.Action2, false)
+	landTrack = loadTrack(animator, "Land", Enum.AnimationPriority.Action2, false)
+
+	local h = hum :: Humanoid
+	h.StateChanged:Connect(function(_, new)
+		if new == Enum.HumanoidStateType.Jumping then
+			if landTrack then
+				landTrack:Stop(0.05)
+			end
+			local jt = jumpTrack
+			if jt then
+				-- time in the air for this jump, so the clip ends as the feet touch down
+				local g = math.max(workspace.Gravity, 1)
+				local v = h.UseJumpPower and h.JumpPower or math.sqrt(2 * g * h.JumpHeight)
+				local air = math.max(2 * v / g, 0.2)
+				local len = jt.Length > 0 and jt.Length or 0.55
+				jt:Play(0.05)
+				jt:AdjustSpeed(len / air)
+			end
+		elseif new == Enum.HumanoidStateType.Landed then
+			local jt = jumpTrack
+			if jt and jt.IsPlaying then
+				jt:Stop(0.1)
+			end
+			if landTrack and jt then
+				landTrack:Play(0.05)
+				landTrack:AdjustSpeed(1.4)
+			end
+		end
+	end)
 end
 
 ContextActionService:BindAction("Sneak", function(_, state)
@@ -246,18 +293,28 @@ local function step(dt: number)
 		end
 	end
 
-	-- sneaking: the sneak animation overrides the walk; standing still holds the crouch
-	local st = sneakTrack
+	-- sneaking: the sneak walk while moving, the crouched sneak idle while still
+	local st, it = sneakTrack, sneakIdleTrack
+	local moving = ground > 0.5
 	if st then
-		if sneaking then
+		if sneaking and (moving or not it) then
 			if not st.IsPlaying then
 				st:Play(0.3)
 			end
-			if ground <= 0.5 then
-				st:AdjustSpeed(0)
+			if not moving then
+				st:AdjustSpeed(0) -- no idle clip: hold the crouch
 			end
 		elseif st.IsPlaying then
 			st:Stop(0.3)
+		end
+	end
+	if it then
+		if sneaking and not moving then
+			if not it.IsPlaying then
+				it:Play(0.3)
+			end
+		elseif it.IsPlaying then
+			it:Stop(0.3)
 		end
 	end
 end
