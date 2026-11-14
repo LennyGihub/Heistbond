@@ -22,6 +22,8 @@
 --    - aiming at the screen-left end: it steps right out past the corner, so the aim camera (over the
 --      right shoulder) isn't blocked by the wall
 --    letting go of the aim walks it back to its spot in cover
+--    - firing without aiming at the end it looks toward = blind fire around the corner: the arms
+--      swing the gun out past the corner (BlindGrip, like over a low wall), the body stays hidden
 -- HeavyMovement steps aside while the character attribute InCover is true (this script then moves
 -- and turns the character). Other players see the pose through the replicated attribute CoverSide.
 local Players = game:GetService("Players")
@@ -46,6 +48,8 @@ local LOW_CAM_ABOVE = 1.4 -- behind a low wall the camera looks from this high a
 local BLIND_HOLD = 0.6 -- blind fire keeps the gun up this long after the trigger is released
 local GRIP_ABOVE = 0.4 -- blind fire: the gun's grip rests this far above the wall's top
 local GRIP_IN = 0.62 -- ...this far back from the wall's face (toward the body, so the hands reach it)
+local CORNER_GRIP_PAST = 0.9 -- tall wall blind fire: the grip goes this far past the corner
+local CORNER_GRIP_UP = 1.0 -- ...at this height above the root (about the shoulders)
 local COVER_ACCEL = 30
 local BACK_GAP = CoverPose.BACK_GAP -- gap between the back and the wall
 local TURN_RATE = math.rad(540)
@@ -488,10 +492,15 @@ local function step(dt: number)
 	local armed = char:FindFirstChildOfClass("Tool") ~= nil
 	local trigger = char:GetAttribute("BlockSprint") == true
 		or (IS_STUDIO and player:GetAttribute("CoverBlindTest") == true) -- test hook: hold the trigger
-	if lowTop and armed and trigger then
+	-- tall wall: blind fire only around the corner the character looks toward (it must be right there)
+	local corner: number? = nil
+	if not lowTop and armed then
+		corner = edgeAlong(params, pos, normal, right * side, dist, EDGE_STOP + 0.3)
+	end
+	if armed and trigger and (lowTop or corner) then
 		blindUntil = os.clock() + BLIND_HOLD
 	end
-	blinding = lowTop ~= nil and armed and os.clock() < blindUntil
+	blinding = armed and os.clock() < blindUntil and (lowTop ~= nil or corner ~= nil)
 	-- the gun rests on top of the wall: grip just behind the wall's near edge, in front of the chest
 	-- (CoverPose turns the chest toward the wall), the barrel over the top
 	if blinding and lowTop then
@@ -504,6 +513,10 @@ local function step(dt: number)
 		end
 		local edge = h.Position + normal * gripIn -- just in front of the wall's face, at ray height
 		local want = Vector3.new(edge.X, (lowTop :: number) + gripUp, edge.Z) + right * side * gripAhead
+		blindGrip = if blindGrip then (blindGrip :: Vector3):Lerp(want, math.min(1, dt * 15)) else want
+	elseif blinding and corner then
+		-- tall wall: the gun is held out past the corner, at shoulder height
+		local want = Vector3.new(pos.X, root.Position.Y + CORNER_GRIP_UP, pos.Z) + right * side * ((corner :: number) + CORNER_GRIP_PAST)
 		blindGrip = if blindGrip then (blindGrip :: Vector3):Lerp(want, math.min(1, dt * 15)) else want
 	else
 		blindGrip = nil

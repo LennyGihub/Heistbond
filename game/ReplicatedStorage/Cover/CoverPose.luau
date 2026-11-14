@@ -226,8 +226,9 @@ function CoverPose.apply(char: Model, s: State)
 
 	-- TALL WALL: hips dropped a little, turned toward the look side, upper body leaning back on the
 	-- wall and twisting toward the side, head looking over the shoulder
-	local tRoot = CFrame.new(0, -0.32 + bob, 0) * A(0, -0.08 * side, 0)
-	local tWaist = A(0.04, -0.12 * side, 0.03 * side)
+	-- (blind fire around the corner: hips shift and the chest turns a bit more toward it)
+	local tRoot = CFrame.new(0.25 * side * blind, -0.32 + bob, 0) * A(0, -0.08 * side, 0)
+	local tWaist = A(0.04, -(0.12 + 0.35 * blind) * side, 0.03 * side)
 	local tNeck = A(0.05, -1.0 * side, 0)
 
 	-- LOW WALL: how low to get. Kneeling puts the hips at thigh length + the knee's thickness; walking

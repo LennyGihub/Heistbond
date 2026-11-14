@@ -66,6 +66,9 @@ local lastPoseSent = 0
 local sentAiming, sentPitch, sentYaw = false, 0, 0
 local sentBlind = false -- blind fire over low cover: last state told to the server
 local blindHold: CFrame? = nil -- blind fire: the gun's hold this frame (torso space)
+local blindAlpha = 0 -- 0..1 blend from the normal hold to the blind-fire hold (animates in and out)
+local lastBlindC0: CFrame? = nil -- the last blind-fire hold, to blend back out of it
+local fireReady = false -- the gun is up (shouldered / held out for blind fire): shots may leave
 local BLIND_ROLL = math.rad(90) -- blind fire: the gun is held on its side (top to the left)
 -- blind fire recoil (visual): every shot throws the gun hard back along the barrel and twists it
 -- about the barrel (neither changes where it points), and tips the muzzle only a little (up/aside),
@@ -303,8 +306,8 @@ local function fireOnce()
 
 	local params = rayParams()
 	local origin = shotOrigin(params)
-	local target = aimTarget(params)
-	local dir = (target - origin).Unit
+	-- the shot leaves along the barrel (where the gun really points), not toward the crosshair
+	local dir = handle.CFrame.LookVector
 	-- random direction inside a cone (uniform over the disc)
 	local blind = blindHold ~= nil
 	local spread = math.rad((aiming and cfg.AimSpread or cfg.HipSpread) + bloom + (blind and BLIND_SPREAD or 0)) * math.sqrt(math.random())
@@ -355,7 +358,7 @@ local function startFiring()
 		local interval = 60 / cfg.RPM
 		while triggerDown and equipped do
 			local now = os.clock()
-			if not reloading and sprintAlpha < 0.35 and now - lastShot >= interval then
+			if not reloading and fireReady and sprintAlpha < 0.35 and now - lastShot >= interval then
 				lastShot = now
 				fireOnce()
 			end
@@ -546,7 +549,8 @@ local function renderStep(dt: number)
 	local now = os.clock()
 	-- blind fire over low cover (CoverClient sets BlindGrip): the gun rests on the cover, pointed at the crosshair
 	local blindGrip = char:GetAttribute("BlindGrip")
-	local engaged = aiming or (now - lastShot < FACE_AFTER_SHOT) or typeof(blindGrip) == "Vector3"
+	-- holding the trigger raises the gun first; shots wait until it is up (fireReady)
+	local engaged = aiming or triggerDown or (now - lastShot < FACE_AFTER_SHOT) or typeof(blindGrip) == "Vector3"
 
 	-- no cursor; the camera follows the mouse freely
 	UserInputService.MouseIconEnabled = false
@@ -636,6 +640,7 @@ local function renderStep(dt: number)
 			weld.C0 = torso.CFrame:ToObjectSpace(handleCF)
 		end
 		updateViewArms(handleCF, cam.CFrame)
+		fireReady = true
 	else
 		if wasFirstPerson then
 			destroyViewArms()
@@ -663,7 +668,12 @@ local function renderStep(dt: number)
 			char:SetAttribute("AimYaw", nil)
 		end
 		blindHold = nil
-		if weld and torso and typeof(blindGrip) == "Vector3" then
+		local isBlind = typeof(blindGrip) == "Vector3"
+		blindAlpha += ((isBlind and 1 or 0) - blindAlpha) * math.min(1, dt * 12)
+		if blindAlpha < 0.01 then
+			lastBlindC0 = nil
+		end
+		if weld and torso and isBlind then
 			-- blind fire: the pistol grip is held where CoverClient says (over the low cover), the gun
 			-- turned on its side and pointed exactly where the shots go (the screen centre)
 			local d = aimFar() - blindGrip
@@ -675,11 +685,18 @@ local function renderStep(dt: number)
 			-- twisted about the barrel
 			local bk = blindKick
 			local aimCF = CFrame.lookAt(blindGrip, blindGrip + look) * CFrame.new(0, 0, bk.back) * CFrame.Angles(bk.up, bk.side, 0)
-			blindHold = torso.CFrame:ToObjectSpace(GunPose.handleFrom(aimCF, BLIND_ROLL + bk.roll))
-			weld.C0 = blindHold :: CFrame
-		elseif weld and torso then
-			weld.C0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
+			lastBlindC0 = torso.CFrame:ToObjectSpace(GunPose.handleFrom(aimCF, BLIND_ROLL + bk.roll))
 		end
+		if weld and torso then
+			-- the arms swing the gun out to the blind-fire hold and back (blend)
+			local normalC0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
+			local bc = lastBlindC0
+			weld.C0 = if bc and blindAlpha > 0.001 then normalC0:Lerp(bc, blindAlpha) else normalC0
+			if isBlind then
+				blindHold = weld.C0
+			end
+		end
+		fireReady = if isBlind then blindAlpha > 0.85 else holdAlpha > 0.85
 		local leftIK = handle:FindFirstChild("LeftHandIK") :: Attachment?
 		if leftIK and not GunAnim.isReloading(tool) then
 			leftIK.Position = GunPose.LEFT_READY:Lerp(GunPose.LEFT_AIM, holdAlpha)
@@ -811,10 +828,16 @@ if IS_STUDIO then
 				if not equipped then
 					break
 				end
+				triggerDown = true -- raises the gun like a real trigger press
+				local t0 = os.clock()
+				while not fireReady and os.clock() - t0 < 1 do
+					RunService.Heartbeat:Wait()
+				end
 				lastShot = os.clock()
 				fireOnce()
 				task.wait(60 / cfg.RPM)
 			end
+			triggerDown = false
 		end)
 	end)
 end

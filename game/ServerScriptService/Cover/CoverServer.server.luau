@@ -1,7 +1,8 @@
 --!strict
 -- Replicates who is in cover: CoverClient tells the server (CoverState remote), the server sets the
 -- character attributes every client uses to draw the cover pose: CoverSide (0 = not in cover, +-1 =
--- tall wall, +-2 = low wall; the sign is the look side) and CoverBlind (blind firing over a low wall). Purely visual, so the only checks are types, a rate limit and that the
+-- tall wall, +-2 = low wall; the sign is the look side) and CoverBlind (blind firing over a low wall
+-- or around a tall wall's corner). Purely visual, so the only checks are types, a rate limit and that the
 -- character is alive.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -45,7 +46,7 @@ local budget: { [Player]: { t: number, n: number } } = {}
 		value = ((typeof(side) == "number" and side < 0) and -1 or 1) * (low == true and 2 or 1)
 	end
 	char:SetAttribute("CoverSide", value)
-	char:SetAttribute("CoverBlind", if alive and low == true and blind == true then true else nil)
+	char:SetAttribute("CoverBlind", if alive and blind == true then true else nil)
 end)
 
 Players.PlayerRemoving:Connect(function(p)
