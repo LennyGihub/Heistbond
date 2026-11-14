@@ -32,7 +32,7 @@ local AIM_DISTANCE = 6.5 -- studs from the character while aiming
 local FACE_AFTER_SHOT = 0.6 -- seconds the character keeps facing the camera after hip fire
 local BASE_FOV = 70
 -- first person: where the gun's handle sits relative to the camera
-local FP_HIP = CFrame.new(0.16, -0.75, -0.56) * CFrame.Angles(0, math.rad(2), 0) -- close: nothing behind the sight is in view
+local FP_HIP = CFrame.new(0.5, -0.42, -0.8) * CFrame.Angles(0, math.rad(4), 0) -- close: nothing behind the sight is in view
 local FP_FOV = 55 -- narrower first-person view: more hands and gun, less arm
 local FP_AIM_FOV = 38
 local RECOIL_RADIUS = math.rad(2.2) -- recoil stays inside this circle around where you aim

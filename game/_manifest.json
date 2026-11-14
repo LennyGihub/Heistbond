@@ -40,8 +40,8 @@
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 27325,
-   "sha1": "317929ead1d75ffbede16e22b5c65778fca09c0c"
+   "bytes": 27323,
+   "sha1": "f07c4fba7aef58bc060721667cd499712ffef6a8"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",
