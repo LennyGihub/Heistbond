@@ -12,5 +12,8 @@
   "10": "Crosshair.client.luau",
   "11": "CoverPose.luau",
   "12": "CoverServer.server.luau",
-  "13": "renderStep"
+  "13": "GunPose.luau",
+  "14": "NPCService.server.luau",
+  "15": "AimAssist.client.luau",
+  "16": "KillFeedback.client.luau"
 }

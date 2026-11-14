@@ -103,6 +103,10 @@ local function rayParams(char: Model): RaycastParams
 	if cam then
 		table.insert(ignore, cam)
 	end
+	local npcs = workspace:FindFirstChild("NPCs") -- people are not cover
+	if npcs then
+		table.insert(ignore, npcs)
+	end
 	p.FilterDescendantsInstances = ignore
 	p.RespectCanCollide = true
 	return p

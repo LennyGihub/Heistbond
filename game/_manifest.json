@@ -44,25 +44,39 @@
    "sha1": "ef497f1a3001aa9cb7453309cf76d704c1996d03"
   },
   {
+   "file": "ServerScriptService/NPC/NPCService.server.luau",
+   "instance": "game.ServerScriptService.NPC.NPCService",
+   "class": "Script",
+   "bytes": 7504,
+   "sha1": "5eef47b82d7d879fee99e77c73bacfdc024ef386"
+  },
+  {
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
    "instance": "game.ServerScriptService.Weapons.WeaponServer",
    "class": "Script",
-   "bytes": 11309,
-   "sha1": "d61dcdf767a867df49af3ca5bf5427e1d269d86b"
+   "bytes": 11508,
+   "sha1": "17cc7c131b899088266b90f7fc9ec5d1d973f564"
   },
   {
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 34896,
-   "sha1": "ce5fd6b01cee91d83731d8e63664b15f3c5b680a"
+   "bytes": 35101,
+   "sha1": "b34d2b3ca24e13017e1e1646c587348e62feb858"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/AimAssist.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.AimAssist",
+   "class": "LocalScript",
+   "bytes": 4361,
+   "sha1": "eda3f07bc4667849c3d1d8dc8a0c47ac7bad74fe"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.CoverClient",
    "class": "LocalScript",
-   "bytes": 27590,
-   "sha1": "cc78056e8ce2039367d596307b0a7dc0f5e08571"
+   "bytes": 27709,
+   "sha1": "c3e8235b4a4e42ab56bb2c56921224ef50bcce8b"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/Crosshair.client.luau",
@@ -77,6 +91,13 @@
    "class": "LocalScript",
    "bytes": 14397,
    "sha1": "c94aa2f047d4b9a7f14fd527278a88b71db7f05b"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/KillFeedback.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.KillFeedback",
+   "class": "LocalScript",
+   "bytes": 1320,
+   "sha1": "2572462041ce937a9d230b8dc273c8c9b57814c5"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",

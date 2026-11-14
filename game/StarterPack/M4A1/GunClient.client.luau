@@ -256,9 +256,10 @@ local function aimTarget(params: RaycastParams): Vector3
 	return r and r.Position or ray.Origin + ray.Direction * cfg.Range
 end
 
--- a point far along the camera's centre line: the gun is POINTED this way (parallel to the view), so
--- it doesn't twist toward whatever is under the crosshair right next to you (a wall at your side).
--- The shots themselves still go to the crosshair (aimTarget).
+-- where the gun is POINTED (the shots leave along the barrel): at what is under the crosshair when
+-- it is at least CONVERGE_MIN studs away (so the shots land on the crosshair), else a point far along
+-- the camera's centre line, so the gun doesn't twist toward a wall right next to you.
+local CONVERGE_MIN = 10
 local function aimFar(): Vector3
 	if IS_STUDIO then
 		local t = tool:GetAttribute("TestAim")
@@ -269,6 +270,10 @@ local function aimFar(): Vector3
 	local cam = Workspace.CurrentCamera
 	local vp = cam.ViewportSize
 	local ray = cam:ViewportPointToRay(vp.X / 2, vp.Y / 2)
+	local hit = Workspace:Raycast(ray.Origin, ray.Direction * cfg.Range, rayParams())
+	if hit and hit.Distance >= CONVERGE_MIN then
+		return hit.Position
+	end
 	return ray.Origin + ray.Direction * cfg.Range
 end
 

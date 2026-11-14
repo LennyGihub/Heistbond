@@ -1,17 +1,17 @@
 # Graph Report - Heistbond  (2026-11-14)
 
 ## Corpus Check
-- 14 files · ~19,686 words
+- 17 files · ~21,523 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
 ## Summary
-- 111 nodes · 173 edges · 14 communities (9 shown, 5 thin omitted)
+- 123 nodes · 189 edges · 17 communities (11 shown, 6 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6ea30646`
+- Built from commit: `1be438ea`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -26,7 +26,9 @@
 - README.md
 - CoverClient.client.luau
 - CoverPose.luau
-- renderStep
+- GunPose.luau
+- NPCService.server.luau
+- AimAssist.client.luau
 
 ## God Nodes (most connected - your core abstractions)
 1. `fireOnce()` - 10 edges
@@ -37,29 +39,29 @@
 6. `takeHold()` - 6 edges
 7. `GunAnim.stop()` - 6 edges
 8. `Heistbond - Roblox dev workspace` - 6 edges
-9. `CoverPose.apply()` - 5 edges
+9. `live()` - 5 edges
 10. `buildHud()` - 5 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `takeHold()` --calls--> `GunPose.cframe()`  [INFERRED]
+  game/ServerScriptService/Weapons/WeaponServer.server.luau → game/ReplicatedStorage/Weapons/GunPose.luau
+- `takeHold()` --calls--> `GunPose.torsoFor()`  [INFERRED]
+  game/ServerScriptService/Weapons/WeaponServer.server.luau → game/ReplicatedStorage/Weapons/GunPose.luau
 - `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 - `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 - `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
   game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `fireOnce()` --calls--> `Fx.tracer()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `renderStep()` --calls--> `GunAnim.step()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunAnim.luau
 
 ## Import Cycles
 - None detected.
 
-## Communities (14 total, 5 thin omitted)
+## Communities (17 total, 6 thin omitted)
 
 ### Community 0 - "GunClient.client.luau"
-Cohesion: 0.16
-Nodes (19): bar(), buildHud(), cloneLimb(), corner(), destroyViewArms(), fireOnce(), flashHitmarker(), label() (+11 more)
+Cohesion: 0.15
+Nodes (22): aimFar(), bar(), buildHud(), camRayParams(), cloneLimb(), corner(), destroyViewArms(), fireOnce() (+14 more)
 
 ### Community 1 - ".mcp.json"
 Cohesion: 0.33
@@ -70,8 +72,8 @@ Cohesion: 0.24
 Nodes (5): armIK(), onCharacter(), onPlayer(), releaseHold(), takeHold()
 
 ### Community 3 - "GunAnim.luau"
-Cohesion: 0.47
-Nodes (8): GunAnim.remember(), GunAnim.startReload(), GunAnim.step(), GunAnim.stop(), parts(), restOf(), setMagHidden(), smooth()
+Cohesion: 0.35
+Nodes (11): GunAnim.isReloading(), GunAnim.remember(), GunAnim.startReload(), GunAnim.step(), GunAnim.stop(), parts(), restOf(), setMagHidden() (+3 more)
 
 ### Community 4 - "Heistbond - Roblox dev workspace"
 Cohesion: 0.29
@@ -89,26 +91,34 @@ Nodes (8): edgeAlong(), findWall(), flat(), groundY(), isWall(), rayOrigin(), ra
 Cohesion: 0.33
 Nodes (6): CoverPose.apply(), CoverPose.isR15(), lerp(), rig(), rotBetween(), solveArm()
 
-### Community 13 - "renderStep"
-Cohesion: 0.26
-Nodes (11): GunAnim.isReloading(), GunPose.anglesTo(), GunPose.cframe(), GunPose.handleAt(), GunPose.handleFrom(), GunPose.pivot(), GunPose.torsoFor(), aimFar() (+3 more)
+### Community 13 - "GunPose.luau"
+Cohesion: 0.47
+Nodes (5): GunPose.anglesTo(), GunPose.handleAt(), GunPose.handleFrom(), GunPose.pivot(), GunPose.torsoFor()
+
+### Community 14 - "NPCService.server.luau"
+Cohesion: 0.48
+Nodes (5): groundAt(), live(), loadTrack(), randomPoint(), walkTo()
+
+### Community 15 - "AimAssist.client.luau"
+Cohesion: 0.83
+Nodes (3): acquire(), headOf(), visible()
 
 ## Knowledge Gaps
-- **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `renderStep()` connect `renderStep` to `GunClient.client.luau`, `GunAnim.luau`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
+- **Why does `renderStep()` connect `GunClient.client.luau` to `GunAnim.luau`, `GunPose.luau`?**
+  _High betweenness centrality (0.076) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `fireOnce()` (e.g. with `Fx.impact()` and `Fx.muzzle()`) actually correct?**
   _`fireOnce()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Why does `fireOnce()` connect `GunClient.client.luau` to `.mcp.json`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
 - **Are the 5 inferred relationships involving `renderStep()` (e.g. with `GunAnim.isReloading()` and `GunAnim.step()`) actually correct?**
   _`renderStep()` has 5 INFERRED edges - model-reasoned connections that need verification._
-- **Why does `GunAnim.step()` connect `GunAnim.luau` to `renderStep`?**
-  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Why does `GunAnim.step()` connect `GunAnim.luau` to `GunClient.client.luau`?**
+  _High betweenness centrality (0.026) - this node is a cross-community bridge._
 - **Are the 6 inferred relationships involving `playReload()` (e.g. with `GunAnim.isReloading()` and `GunAnim.startReload()`) actually correct?**
   _`playReload()` has 6 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 2 inferred relationships involving `GunAnim.step()` (e.g. with `renderStep()` and `playReload()`) actually correct?**

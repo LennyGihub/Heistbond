@@ -33,6 +33,7 @@ local FireRemote = remote("Fire")
 local ReloadRemote = remote("Reload")
 local ShotRemote = remote("Shot") -- server -> other clients, for effects
 local PoseRemote = remote("Pose") -- client -> server: aiming + pitch, so everyone sees the gun raised
+local KillRemote = remote("Kill") -- server -> shooter: your shot killed someone (screen flash)
 
 type State = { tokens: number, lastRefill: number, reloadToken: number, reloading: boolean }
 local states: { [Player]: State } = {}
@@ -141,6 +142,9 @@ FireRemote.OnServerEvent:Connect(function(player: Player, origin: any, direction
 				dmg *= cfg.HeadMultiplier
 			end
 			victim:TakeDamage(dmg)
+			if victim.Health <= 0 then
+				KillRemote:FireClient(player, result.Instance.Name == "Head")
+			end
 		end
 	end
 	others(player, tool, "Fire", hitPos, normal, hitChar)
