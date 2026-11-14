@@ -244,6 +244,9 @@ local function step(dt: number)
 	-- turn at a limited rate
 	local d = angleDiff(targetYaw, cur)
 	local newYaw = cur + math.clamp(d, -rate * dt, rate * dt)
+	if aiming and typeof(aimYaw) == "number" then
+		newYaw = aimYaw -- aiming: the body turns exactly with the mouse, no turn-rate limit
+	end
 	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, newYaw, 0)
 	if typeof(aimYaw) ~= "number" then
 		moveDir = Vector3.new(-math.sin(newYaw), 0, -math.cos(newYaw)) -- always walk where we face
@@ -321,6 +324,22 @@ end
 
 -- right after the control module reads the keys/stick (Input priority) and before the camera
 RunService:BindToRenderStep("HeavyMovement", Enum.RenderPriority.Input.Value + 1, step)
+
+-- aiming: after the camera has turned this frame, face exactly where it looks (same frame as the mouse,
+-- no turn-rate limit). GunClient runs right after this (Camera + 2) and points the gun.
+local Weapons = ReplicatedStorage:WaitForChild("Weapons", 10)
+local GunPose = Weapons and Weapons:FindFirstChild("GunPose") and require(Weapons:FindFirstChild("GunPose") :: ModuleScript) or nil
+RunService:BindToRenderStep("HeavyMovementAim", Enum.RenderPriority.Camera.Value + 1, function()
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not char or not root or not hum or hum.Health <= 0 or char:GetAttribute("Aiming") ~= true then
+		return
+	end
+	local lv = workspace.CurrentCamera.CFrame.LookVector
+	local yaw = math.atan2(-lv.X, -lv.Z) - (GunPose and GunPose.BLADE or 0)
+	root.CFrame = CFrame.new(root.Position) * CFrame.fromOrientation(0, yaw, 0)
+end)
 
 player.CharacterAdded:Connect(function(char)
 	speed = 0

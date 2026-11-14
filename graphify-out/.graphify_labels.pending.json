@@ -7,8 +7,5 @@
   "5": "HeavyMovement.client.luau",
   "6": ".mcp.json",
   "7": "README.md",
-  "8": "WeaponConfig.luau",
-  "9": "unequip",
-  "10": "renderStep",
-  "12": "updateViewArms"
+  "8": "WeaponConfig.luau"
 }

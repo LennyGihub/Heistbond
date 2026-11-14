@@ -578,7 +578,7 @@ local function renderStep(dt: number)
 			if engaged then
 				wantYaw, wantPitch = GunPose.anglesTo(torso, 1, aimTarget(rayParams()))
 			end
-			local rate = math.min(1, dt * 18)
+			local rate = aiming and 1 or math.min(1, dt * 18) -- aiming: the gun follows the mouse exactly
 			poseYaw += (wantYaw - poseYaw) * rate
 			posePitch += (wantPitch - posePitch) * rate
 			yaw, pitch = poseYaw, posePitch
@@ -742,7 +742,8 @@ tool.Equipped:Connect(function()
 	pcall(function()
 		RunService:UnbindFromRenderStep(RENDER_NAME)
 	end)
-	RunService:BindToRenderStep(RENDER_NAME, Enum.RenderPriority.Camera.Value + 1, renderStep)
+	-- after the camera (Camera) and HeavyMovement's aim facing (Camera + 1)
+	RunService:BindToRenderStep(RENDER_NAME, Enum.RenderPriority.Camera.Value + 2, renderStep)
 	ContextActionService:BindAction("GunAim", onAimAction, true, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonL2)
 	ContextActionService:BindAction("GunReload", onReloadAction, true, Enum.KeyCode.R, Enum.KeyCode.ButtonX)
 	ContextActionService:SetTitle("GunAim", "AIM")

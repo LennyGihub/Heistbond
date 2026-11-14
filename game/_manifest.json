@@ -40,15 +40,15 @@
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 28038,
-   "sha1": "c0cfa8484aca729e61bff9ec1c0ee1d3ac5ff1b5"
+   "bytes": 28173,
+   "sha1": "6af793b820cb8000b98bf20a3610dabf5601b020"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.HeavyMovement",
    "class": "LocalScript",
-   "bytes": 13117,
-   "sha1": "2e8df6f66c3b612943c413c99283da64f8dc488a"
+   "bytes": 14232,
+   "sha1": "a801bc08e9ced8ca48de490756d8498ba7f6054e"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",
