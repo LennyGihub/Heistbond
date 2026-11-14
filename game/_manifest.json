@@ -5,8 +5,8 @@
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",
    "instance": "game.ReplicatedStorage.Weapons.GunAnim",
    "class": "ModuleScript",
-   "bytes": 4078,
-   "sha1": "c14950c4c92dd5738b7efa66bd882864a2d0b431"
+   "bytes": 4921,
+   "sha1": "912a4c4a1df3bf927bfe7f51fc294279f1f4b830"
   },
   {
    "file": "ReplicatedStorage/Weapons/GunPose.luau",
@@ -40,8 +40,8 @@
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 22906,
-   "sha1": "510169effff8ce994dd2eacf0688fa03d0ac027a"
+   "bytes": 26855,
+   "sha1": "197f81ff2480c3ab3b234acc8b9bc69a4b761d8f"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau",

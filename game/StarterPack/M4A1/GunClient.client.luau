@@ -32,12 +32,16 @@ local AIM_DISTANCE = 6.5 -- studs from the character while aiming
 local FACE_AFTER_SHOT = 0.6 -- seconds the character keeps facing the camera after hip fire
 local BASE_FOV = 70
 -- first person: where the gun's handle sits relative to the camera
-local FP_HIP = CFrame.new(0.5, -0.78, -1.55) * CFrame.Angles(0, math.rad(2), 0)
-local FP_AIM = CFrame.new(0.022, -0.615, -1.05) -- eye lined up with the holo sight
+local FP_HIP = CFrame.new(0.34, -0.4, -1.75) * CFrame.Angles(0, math.rad(2), 0)
+local FP_FOV = 55 -- narrower first-person view: more hands and gun, less arm
+local FP_AIM_FOV = 38
+local HIP_YAW = math.rad(25) -- third person, not aiming: how far the gun swings off the body's facing
+local RECOIL_RADIUS = math.rad(2.2) -- recoil stays inside this circle around where you aim
+local EYE_RELIEF = 1.0 -- studs from the eye to the sight's reticle while aiming in first person
+local fpAim = CFrame.new(0.022, -0.615, -1.05) -- recomputed from the gun's Sight attachment on equip
 -- the avatar's own arms are far too chunky this close to the camera: first person draws slim local arms
-local FP_ELBOW = { Right = Vector3.new(0.8, -1.3, -0.35), Left = Vector3.new(-0.6, -1.2, -0.9) } -- camera space
-local GLOVE = Color3.fromRGB(28, 29, 31)
-local SLEEVE = Color3.fromRGB(74, 80, 62)
+local FP_ELBOW = { Right = Vector3.new(1.0, -1.5, -0.4), Left = Vector3.new(-1.1, -1.6, -1.2) } -- camera space, low and wide
+local LIMB_SCALE = 0.42 -- the avatar's own hands/forearms, shrunk so they fit a first-person view
 local HOLO_DOT_DIST = 1.19 -- studs in front of the eye: the sight window while aiming in first person
 local RENDER_NAME = "GunCamera_" .. tool.Name
 local RED = Color3.fromRGB(255, 45, 45)
@@ -47,7 +51,10 @@ local equipped, triggerDown, aiming, reloading = false, false, false, false
 local ammo = (tool:GetAttribute("Ammo") :: number?) or cfg.MagSize
 local reserve = (tool:GetAttribute("Reserve") :: number?) or cfg.Reserve
 local lastShot = 0
-local recoil = Vector2.zero -- pending camera kick (pitch, yaw) in radians
+local recoilTarget = Vector2.zero -- where recoil wants the aim (pitch, yaw offset), recovers to zero
+local recoilCur = Vector2.zero
+local recoilApplied = Vector2.zero
+local poseYaw, posePitch = 0, 0 -- smoothed third-person gun angles
 local bloom = 0 -- extra spread from sustained fire, degrees
 local reloadToken = 0
 local firing: thread? = nil
@@ -267,7 +274,14 @@ local function fireOnce()
 	end
 
 	local k = aiming and 0.6 or 1
-	recoil += Vector2.new(math.rad(cfg.RecoilUp * k), math.rad((math.random() * 2 - 1) * cfg.RecoilSide * k))
+	-- kick in a random direction (slightly biased up), kept inside a small circle around the aim point
+	local r = math.rad(cfg.RecoilUp) * k * (0.7 + math.random() * 0.5)
+	local a = math.random() * math.pi * 2
+	recoilTarget += Vector2.new(math.cos(a) * r * 0.8 + math.rad(cfg.RecoilUp) * 0.25 * k, math.sin(a) * r)
+	local maxR = RECOIL_RADIUS * k
+	if recoilTarget.Magnitude > maxR then
+		recoilTarget = recoilTarget.Unit * maxR
+	end
 	bloom = math.min(bloom + 0.22, 2.5)
 	kick += Vector2.new(aiming and 0.06 or 0.1, math.rad(aiming and 1.6 or 2.8))
 end
@@ -371,15 +385,60 @@ local function destroyViewArms()
 	end
 end
 
+local function cloneLimb(char: Model, name: string, scale: Vector3): BasePart?
+	local src = char:FindFirstChild(name)
+	if not src or not src:IsA("BasePart") then
+		return nil
+	end
+	local ok, p = pcall(function()
+		return src:Clone()
+	end)
+	if not ok or not p then
+		return nil
+	end
+	local part = p :: BasePart
+	for _, c in part:GetChildren() do
+		if not (c:IsA("SurfaceAppearance") or c:IsA("SpecialMesh") or c:IsA("Decal") or c:IsA("Texture")) then
+			c:Destroy()
+		end
+	end
+	part.Size = src.Size * scale
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Transparency = 0
+	part.LocalTransparencyModifier = 0
+	return part
+end
+
 local function updateViewArms(handleCF: CFrame, camCF: CFrame)
+	local char = player.Character
+	if not char then
+		return
+	end
 	local m = viewArms
 	if not m then
 		m = Instance.new("Model")
 		m.Name = "ViewArms"
-		vmPart(m, "RightGlove", Vector3.new(0.24, 0.36, 0.28), GLOVE, Enum.Material.Fabric)
-		vmPart(m, "LeftGlove", Vector3.new(0.26, 0.2, 0.4), GLOVE, Enum.Material.Fabric)
-		vmPart(m, "RightSleeve", Vector3.new(0.27, 0.27, 1), SLEEVE, Enum.Material.Fabric)
-		vmPart(m, "LeftSleeve", Vector3.new(0.27, 0.27, 1), SLEEVE, Enum.Material.Fabric)
+		for _, side in { "Right", "Left" } do
+			local skin = (char:FindFirstChild(side .. "Hand") :: BasePart?)
+			local color = skin and skin.Color or Color3.fromRGB(204, 142, 105)
+			local hand = cloneLimb(char, side .. "Hand", Vector3.one * LIMB_SCALE)
+				or vmPart(m, "x", Vector3.new(0.3, 0.3, 0.3), color, Enum.Material.SmoothPlastic)
+			hand.Name = side .. "Hand"
+			hand.Parent = m
+			local fore = cloneLimb(char, side .. "LowerArm", Vector3.new(LIMB_SCALE * 0.75, 1, LIMB_SCALE * 0.75))
+				or vmPart(m, "x", Vector3.new(0.3, 1, 0.3), color, Enum.Material.SmoothPlastic)
+			fore.Name = side .. "Forearm"
+			fore.Parent = m
+			-- how the real hand holds things, so the shrunk copy grips the gun the same way
+			local realHand = char:FindFirstChild(side .. "Hand")
+			local grip = realHand and realHand:FindFirstChild(side .. "GripAttachment") :: Attachment?
+			local g = grip and grip.CFrame or CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+			hand:SetAttribute("GripOffset", (CFrame.new(g.Position * LIMB_SCALE) * g.Rotation):Inverse())
+		end
 		local dot = vmPart(m, "HoloDot", Vector3.new(0.016, 0.016, 0.016), Color3.fromRGB(255, 40, 40), Enum.Material.Neon)
 		dot.Shape = Enum.PartType.Ball
 		m.Parent = Workspace.CurrentCamera
@@ -388,27 +447,29 @@ local function updateViewArms(handleCF: CFrame, camCF: CFrame)
 	local model = m :: Model
 	for _, side in { "Right", "Left" } do
 		local att = handle:FindFirstChild(side .. "HandIK") :: Attachment?
-		local glove = model:FindFirstChild(side .. "Glove") :: BasePart?
-		local sleeve = model:FindFirstChild(side .. "Sleeve") :: BasePart?
-		if att and glove and sleeve then
-			local handCF = handleCF * att.CFrame
-			glove.CFrame = handCF
-			local wrist = handCF.Position
+		local hand = model:FindFirstChild(side .. "Hand") :: BasePart?
+		local fore = model:FindFirstChild(side .. "Forearm") :: BasePart?
+		if att and hand and fore then
+			local off = hand:GetAttribute("GripOffset")
+			hand.CFrame = (handleCF * att.CFrame) * (typeof(off) == "CFrame" and off or CFrame.identity)
+			local wrist = hand.CFrame:PointToWorldSpace(Vector3.new(0, hand.Size.Y * 0.45, 0))
 			local elbow = camCF:PointToWorldSpace(FP_ELBOW[side])
 			local len = (elbow - wrist).Magnitude
-			sleeve.Size = Vector3.new(0.27, 0.27, len + 0.1)
-			sleeve.CFrame = CFrame.lookAt((wrist + elbow) / 2, elbow)
+			fore.Size = Vector3.new(fore.Size.X, len + 0.05, fore.Size.Z)
+			-- forearm's long axis (Y) runs from the wrist to the elbow
+			fore.CFrame = CFrame.lookAt((wrist + elbow) / 2, elbow) * CFrame.Angles(-math.pi / 2, 0, 0)
 		end
 	end
-	-- aiming: the sight body turns see-through and its red dot sits on the line of sight
+	-- sights without their own reticle: fade the body and draw a red dot on the line of sight
+	local ownReticle = tool:FindFirstChild("SightMark", true) ~= nil
 	local sight = tool:FindFirstChild("HoloSight") :: BasePart?
 	if sight then
-		sight.LocalTransparencyModifier = aimAlpha * 0.8
+		sight.LocalTransparencyModifier = ownReticle and 0 or aimAlpha * 0.8
 	end
 	local dot = model:FindFirstChild("HoloDot") :: BasePart?
 	if dot then
 		dot.CFrame = camCF * CFrame.new(0, 0, -HOLO_DOT_DIST)
-		dot.Transparency = aimAlpha > 0.7 and 0 or 1
+		dot.Transparency = (aimAlpha > 0.7 and not ownReticle) and 0 or 1
 	end
 end
 
@@ -434,12 +495,15 @@ local function renderStep(dt: number)
 
 	local alpha = math.min(1, dt * 12)
 	aimAlpha += ((aiming and 1 or 0) - aimAlpha) * math.min(1, dt * 14)
-	cam.FieldOfView += ((aiming and cfg.AimFov or BASE_FOV) - cam.FieldOfView) * alpha
+	local fov = if firstPerson then (aiming and FP_AIM_FOV or FP_FOV) else (aiming and cfg.AimFov or BASE_FOV)
+	cam.FieldOfView += (fov - cam.FieldOfView) * alpha
 
-	-- recoil: camera kick applied over a few frames, gun kick springs back
-	local step = recoil * math.min(1, dt * 22)
-	recoil -= step
-	cam.CFrame *= CFrame.Angles(step.X, step.Y, 0)
+	-- recoil: the aim is pushed to an offset that springs back to where you were aiming
+	recoilTarget *= math.exp(-dt * 7)
+	recoilCur = recoilCur:Lerp(recoilTarget, math.min(1, dt * 30))
+	local rd = recoilCur - recoilApplied
+	recoilApplied = recoilCur
+	cam.CFrame *= CFrame.Angles(rd.X, rd.Y, 0)
 	bloom = math.max(0, bloom - dt * 3)
 	kick *= math.exp(-dt * 14)
 	local kickCF = CFrame.new(0, 0, kick.X) * CFrame.Angles(kick.Y, 0, 0)
@@ -483,7 +547,7 @@ local function renderStep(dt: number)
 			* CFrame.Angles(0, 0, math.sin(bobT) * 0.02 * amp)
 		local swayCF = CFrame.Angles(sway.X, sway.Y, sway.Y * 0.6)
 		local lower = GunAnim.isReloading(tool) and CFrame.new(0, -0.12, 0.1) or CFrame.identity
-		local vm = FP_HIP:Lerp(FP_AIM, aimAlpha) * bobCF * swayCF * lower * CFrame.new(0, 0, kick.X * 1.4) * CFrame.Angles(kick.Y * 0.8, 0, 0)
+		local vm = FP_HIP:Lerp(fpAim, aimAlpha) * bobCF * swayCF * lower * CFrame.new(0, 0, kick.X * 1.4) * CFrame.Angles(kick.Y * 0.8, 0, 0)
 		local handleCF = cam.CFrame * vm * reloadCF
 		if weld and torso then
 			weld.C0 = torso.CFrame:ToObjectSpace(handleCF)
@@ -494,10 +558,23 @@ local function renderStep(dt: number)
 			destroyViewArms()
 			lastLook = nil
 		end
-		-- point the gun at whatever is under the screen centre
+		-- aiming / just fired: point exactly at what's under the screen centre.
+		-- otherwise: follow the view direction calmly, within a small swing, never flipping sides.
+		local engaged = aiming or (now - lastShot < FACE_AFTER_SHOT)
 		if torso then
-			local target = aimTarget(rayParams())
-			yaw, pitch = GunPose.anglesTo(torso, aimAlpha, target)
+			local target = if engaged then aimTarget(rayParams()) else cam.CFrame.Position + cam.CFrame.LookVector * 60
+			local wantYaw, wantPitch = GunPose.anglesTo(torso, aimAlpha, target)
+			if not engaged then
+				if math.abs(wantYaw) > math.rad(100) then
+					wantYaw = 0 -- looking behind: keep the gun forward
+				end
+				wantYaw = math.clamp(wantYaw, -HIP_YAW, HIP_YAW)
+				wantPitch = math.clamp(wantPitch, -0.6, 0.6)
+			end
+			local rate = math.min(1, dt * (engaged and 18 or 6))
+			poseYaw += (wantYaw - poseYaw) * rate
+			posePitch += (wantPitch - posePitch) * rate
+			yaw, pitch = poseYaw, posePitch
 		end
 		-- not aiming: the body faces where you walk and the gun swings toward the target (up to MAX_YAW).
 		-- aiming or just after shooting: the body turns to face where you look.
@@ -579,6 +656,8 @@ local function unequip()
 	destroyViewArms()
 	wasFirstPerson, lastLook = false, nil
 	kick, sway = Vector2.zero, Vector2.zero
+	recoilTarget, recoilCur, recoilApplied = Vector2.zero, Vector2.zero, Vector2.zero
+	poseYaw, posePitch = 0, 0
 	pcall(function()
 		RunService:UnbindFromRenderStep(RENDER_NAME)
 	end)
@@ -629,6 +708,12 @@ tool.Equipped:Connect(function()
 	end
 	sentAiming, sentPitch, sentYaw = false, 0, 0
 	GunAnim.remember(tool)
+	-- line the eye up with this gun's sight
+	local sightAtt = handle:FindFirstChild("Sight") :: Attachment?
+	if sightAtt then
+		local p = sightAtt.Position
+		fpAim = CFrame.new(-p.X, -p.Y, -EYE_RELIEF - p.Z)
+	end
 	ammo = (tool:GetAttribute("Ammo") :: number?) or ammo
 	reserve = (tool:GetAttribute("Reserve") :: number?) or reserve
 	buildHud()

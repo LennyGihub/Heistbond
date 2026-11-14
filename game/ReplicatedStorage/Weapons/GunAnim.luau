@@ -4,23 +4,26 @@
 -- and tilts the gun. Call GunAnim.step every frame while a reload is active.
 local GunAnim = {}
 
-type Rest = { left: CFrame, mag: CFrame }
+type Rest = { left: CFrame, mag: CFrame, grab: Vector3, bolt: Vector3 }
 type Active = { start: number, duration: number }
 
 local rest: { [Tool]: Rest } = setmetatable({}, { __mode = "k" }) :: any
 local active: { [Tool]: Active } = setmetatable({}, { __mode = "k" }) :: any
 
 -- left-hand path, as a fraction of the reload time. "gun" = handle space, "body" = torso space.
-local GRAB = Vector3.new(-0.02, -0.75, -0.16) -- bottom of the magazine
+-- "grab+" = offset from the magazine grab point; "bolt" = the bolt release. Both come from the gun's
+-- Handle attachments MagGrab / BoltRelease when present.
+local DEFAULT_GRAB = Vector3.new(-0.02, -0.75, -0.16)
+local DEFAULT_BOLT = Vector3.new(-0.24, 0.12, 0.08)
 local KEYS: { { any } } = {
 	{ 0.00, "rest" },
-	{ 0.12, "gun", GRAB },
-	{ 0.25, "gun", Vector3.new(-0.02, -1.55, 0.0) }, -- old mag pulled out
+	{ 0.12, "grab+", Vector3.zero },
+	{ 0.25, "grab+", Vector3.new(0, -0.8, 0.16) }, -- old mag pulled out
 	{ 0.42, "body", Vector3.new(-0.55, -1.05, -0.55) }, -- stowed in the left hip pouch
 	{ 0.50, "body", Vector3.new(-0.55, -1.05, -0.55) }, -- new mag grabbed
-	{ 0.68, "gun", Vector3.new(-0.02, -1.35, -0.12) }, -- lined up under the mag well
-	{ 0.78, "gun", GRAB }, -- seated
-	{ 0.86, "gun", Vector3.new(-0.24, 0.12, 0.08) }, -- slap the bolt release
+	{ 0.68, "grab+", Vector3.new(0, -0.6, 0.04) }, -- lined up under the mag well
+	{ 0.78, "grab+", Vector3.zero }, -- seated
+	{ 0.86, "bolt" }, -- slap the bolt release
 	{ 1.00, "rest" },
 }
 local MAG_IN_HAND = { 0.12, 0.78 }
@@ -29,6 +32,16 @@ local MAG_HIDDEN = { 0.42, 0.5 }
 local function smooth(x: number): number
 	x = math.clamp(x, 0, 1)
 	return x * x * (3 - 2 * x)
+end
+
+local function setMagHidden(mag: BasePart, hidden: boolean)
+	local v = hidden and 1 or 0
+	mag.LocalTransparencyModifier = v
+	for _, d in mag:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.LocalTransparencyModifier = v
+		end
+	end
 end
 
 local function parts(tool: Tool): (BasePart?, Attachment?, Weld?, BasePart?)
@@ -51,7 +64,15 @@ local function restOf(tool: Tool): Rest?
 	if not left or not magWeld then
 		return nil
 	end
-	r = { left = left.CFrame, mag = magWeld.C0 }
+	local handle = tool:FindFirstChild("Handle")
+	local grabAtt = handle and handle:FindFirstChild("MagGrab") :: Attachment?
+	local boltAtt = handle and handle:FindFirstChild("BoltRelease") :: Attachment?
+	r = {
+		left = left.CFrame,
+		mag = magWeld.C0,
+		grab = grabAtt and grabAtt.Position or DEFAULT_GRAB,
+		bolt = boltAtt and boltAtt.Position or DEFAULT_BOLT,
+	}
 	rest[tool] = r
 	return r
 end
@@ -79,7 +100,7 @@ function GunAnim.stop(tool: Tool)
 		magWeld.C0 = r.mag
 	end
 	if mag then
-		mag.LocalTransparencyModifier = 0
+		setMagHidden(mag, false)
 	end
 end
 
@@ -103,10 +124,14 @@ function GunAnim.step(tool: Tool, torso: BasePart?): CFrame
 	local function keyPos(k: { any }): Vector3
 		if k[2] == "rest" then
 			return r.left.Position
+		elseif k[2] == "grab+" then
+			return r.grab + k[3]
+		elseif k[2] == "bolt" then
+			return r.bolt
 		elseif k[2] == "body" and torso then
 			return handle.CFrame:PointToObjectSpace(torso.CFrame:PointToWorldSpace(k[3]))
 		end
-		return k[3]
+		return r.left.Position
 	end
 	local pos = r.left.Position
 	for i = 1, #KEYS - 1 do
@@ -120,12 +145,12 @@ function GunAnim.step(tool: Tool, torso: BasePart?): CFrame
 	left.CFrame = CFrame.new(pos) * r.left.Rotation
 
 	if t > MAG_IN_HAND[1] and t < MAG_IN_HAND[2] then
-		magWeld.C0 = CFrame.new(pos + (r.mag.Position - GRAB)) * r.mag.Rotation
+		magWeld.C0 = CFrame.new(pos + (r.mag.Position - r.grab)) * r.mag.Rotation
 	else
 		magWeld.C0 = r.mag
 	end
 	if mag then
-		mag.LocalTransparencyModifier = (t > MAG_HIDDEN[1] and t < MAG_HIDDEN[2]) and 1 or 0
+		setMagHidden(mag, t > MAG_HIDDEN[1] and t < MAG_HIDDEN[2])
 	end
 
 	-- tilt the gun toward the reloading hand, then back
