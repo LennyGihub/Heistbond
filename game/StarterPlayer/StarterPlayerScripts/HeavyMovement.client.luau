@@ -7,6 +7,7 @@
 --    backwards plays the walk cycle in reverse instead of moonwalking
 --  * Rthro walk/run animations whose playback speed is set from the real ground speed every frame,
 --    so the feet never slide; Left Shift sprints
+--  * Ctrl (gamepad B) toggles a sneaky crouch-walk: slower, its own animation, crouched when standing still
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -23,6 +24,7 @@ local SHARP_TURN_SPEED = 0.35 -- speed kept while turning more than ~90 degrees
 local WALK_SPEED = 8 -- heavier, realistic walking pace (Roblox default is 16)
 local SPRINT_SPEED = 15 -- hold Left Shift
 local AIM_SPEED = 6 -- while aiming
+local SNEAK_SPEED = 4 -- Ctrl toggles sneaking
 
 -- Roblox's official Rthro walk/run, and how much ground each covers per 1x playback (measured in Studio:
 -- the stance foot's backward travel), so the playback speed can match the real ground speed exactly
@@ -37,6 +39,10 @@ local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local IS_STUDIO = RunService:IsStudio()
 local runStride = RUN_STRIDE
+local ContextActionService = game:GetService("ContextActionService")
+local sneaking = false
+local sneakTrack: AnimationTrack? = nil
+local sneakStride = 1.67
 local RUN_BLEND_FROM, RUN_BLEND_TO = 11, 15 -- ground speeds where walk blends into run
 
 local speed = 0 -- current ground speed (studs/s)
@@ -73,6 +79,44 @@ local function useRthro(char: Model)
 		end
 	end
 end
+
+-- the sneak animation: published Animations.Sneak, or in Studio the unpublished Animations.SneakClip
+local function loadSneak(char: Model)
+	sneakTrack = nil
+	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid?
+	local animator = hum and hum:WaitForChild("Animator", 10) :: Animator?
+	local anims = ReplicatedStorage:FindFirstChild("Animations")
+	if not animator or not anims then
+		return
+	end
+	local slot = anims:FindFirstChild("Sneak")
+	local clip = anims:FindFirstChild("SneakClip")
+	local id: string? = nil
+	if slot and slot:IsA("Animation") and slot.AnimationId ~= "" then
+		id = slot.AnimationId
+		sneakStride = (slot:GetAttribute("Stride") :: number?) or sneakStride
+	elseif IS_STUDIO and clip and clip:IsA("KeyframeSequence") then
+		id = KeyframeSequenceProvider:RegisterKeyframeSequence(clip)
+		sneakStride = (clip:GetAttribute("Stride") :: number?) or sneakStride
+	end
+	if not id then
+		return
+	end
+	local a = Instance.new("Animation")
+	a.AnimationId = id
+	local track = animator:LoadAnimation(a)
+	track.Priority = Enum.AnimationPriority.Movement
+	track.Looped = true
+	sneakTrack = track
+end
+
+ContextActionService:BindAction("Sneak", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		sneaking = not sneaking
+	end
+	return Enum.ContextActionResult.Pass
+end, true, Enum.KeyCode.LeftControl, Enum.KeyCode.RightControl, Enum.KeyCode.ButtonB)
+ContextActionService:SetTitle("Sneak", "SNEAK")
 
 local function walkTracks(hum: Humanoid): { AnimationTrack }
 	local out = {}
@@ -117,7 +161,14 @@ local function step(dt: number)
 	if sprinting and typeof(aimYaw) == "number" and mag > 0.01 then
 		sprinting = wantDir:Dot(Vector3.new(-math.sin(aimYaw), 0, -math.cos(aimYaw))) > 0.7
 	end
-	local maxSpeed = if aiming then AIM_SPEED elseif sprinting then SPRINT_SPEED else WALK_SPEED
+	if sprinting then
+		sneaking = false -- sprinting stands you back up
+	end
+	local maxSpeed = if sneaking then (aiming and math.min(AIM_SPEED, SNEAK_SPEED) or SNEAK_SPEED)
+		elseif aiming then AIM_SPEED
+		elseif sprinting then SPRINT_SPEED
+		else WALK_SPEED
+	char:SetAttribute("Sneaking", sneaking)
 	hum.WalkSpeed = SPRINT_SPEED -- the cap; the actual speed is set through Move's magnitude below
 	local targetSpeed = maxSpeed * mag
 	local moveDir: Vector3
@@ -173,6 +224,9 @@ local function step(dt: number)
 		local backwards = typeof(aimYaw) == "number" and dir:Dot(facing) < -0.3
 		local sign = backwards and -1 or 1
 		local runW = math.clamp((ground - RUN_BLEND_FROM) / (RUN_BLEND_TO - RUN_BLEND_FROM), 0, 1)
+		if sneakTrack then
+			sneakTrack:AdjustSpeed(sign * ground / sneakStride)
+		end
 		for _, t in walkTracks(hum) do
 			local isRun = string.find(string.lower(t.Name), "run") ~= nil
 			local stride = isRun and runStride or WALK_STRIDE
@@ -186,6 +240,21 @@ local function step(dt: number)
 			t:AdjustWeight(math.max(isRun and runW or (1 - runW), 0.001))
 		end
 	end
+
+	-- sneaking: the sneak animation overrides the walk; standing still holds the crouch
+	local st = sneakTrack
+	if st then
+		if sneaking then
+			if not st.IsPlaying then
+				st:Play(0.3)
+			end
+			if ground <= 0.5 then
+				st:AdjustSpeed(0)
+			end
+		elseif st.IsPlaying then
+			st:Stop(0.3)
+		end
+	end
 end
 
 -- right after the control module reads the keys/stick (Input priority) and before the camera
@@ -194,8 +263,11 @@ RunService:BindToRenderStep("HeavyMovement", Enum.RenderPriority.Input.Value + 1
 player.CharacterAdded:Connect(function(char)
 	speed = 0
 	strafeDir = Vector3.zero
+	sneaking = false
 	useRthro(char)
+	loadSneak(char)
 end)
 if player.Character then
 	task.spawn(useRthro, player.Character)
+	task.spawn(loadSneak, player.Character)
 end
