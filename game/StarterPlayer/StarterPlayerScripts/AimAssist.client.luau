@@ -76,7 +76,9 @@ RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 5, f
 	if not char or not cam then
 		return
 	end
-	local aiming = char:GetAttribute("Aiming") == true and char:FindFirstChildOfClass("Tool") ~= nil
+	local tool = char:FindFirstChildOfClass("Tool")
+	-- guns marked NoAimAssist (the sniper: its scope steers the camera itself) never lock
+	local aiming = char:GetAttribute("Aiming") == true and tool ~= nil and tool:GetAttribute("NoAimAssist") ~= true
 	if aiming and not wasAiming then
 		firedThisAim = false
 		target = acquire(cam)

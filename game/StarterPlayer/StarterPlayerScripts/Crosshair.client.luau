@@ -3,6 +3,7 @@
 -- Shots go where the screen centre points (GunClient), so the dot is exactly the aim point. Hidden
 -- while aiming down the sight in first person (the sight has its own reticle).
 -- Behind low cover CoverClient raises the camera, which puts the dot above the wall for blind fire.
+-- Guns with the tool attribute NoCrosshair (the sniper) show no dot.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -37,7 +38,9 @@ RunService.RenderStepped:Connect(function()
 	local char = player.Character
 	local cam = workspace.CurrentCamera
 	local head = char and char:FindFirstChild("Head") :: BasePart?
-	local armed = char ~= nil and char:FindFirstChildOfClass("Tool") ~= nil
+	local tool = char and char:FindFirstChildOfClass("Tool")
+	-- guns marked NoCrosshair (the sniper) have no sight at the hip; their scope has its own reticle
+	local armed = tool ~= nil and tool:GetAttribute("NoCrosshair") ~= true
 	local firstPerson = head ~= nil and cam ~= nil and (cam.CFrame.Position - head.Position).Magnitude < 1.5
 	local sighted = firstPerson and char ~= nil and char:GetAttribute("Aiming") == true
 	dot.Visible = armed and not sighted

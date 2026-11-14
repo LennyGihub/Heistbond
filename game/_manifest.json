@@ -26,8 +26,8 @@
    "file": "ReplicatedStorage/Weapons/WeaponConfig.luau",
    "instance": "game.ReplicatedStorage.Weapons.WeaponConfig",
    "class": "ModuleScript",
-   "bytes": 1333,
-   "sha1": "ca99e33b309470a34020ef6e7ab01819dff44e98"
+   "bytes": 2374,
+   "sha1": "73b8dc0749cd96bbad328e980ef12bae021277a4"
   },
   {
    "file": "ReplicatedStorage/Weapons/WeaponFx.luau",
@@ -75,15 +75,22 @@
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 35101,
-   "sha1": "b34d2b3ca24e13017e1e1646c587348e62feb858"
+   "bytes": 40808,
+   "sha1": "4385c1cf9c062f320aa5563b464b8fa35d6d5527"
+  },
+  {
+   "file": "StarterPack/Sniper/GunClient.client.luau",
+   "instance": "game.StarterPack.Sniper.GunClient",
+   "class": "LocalScript",
+   "bytes": 40808,
+   "sha1": "4385c1cf9c062f320aa5563b464b8fa35d6d5527"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/AimAssist.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.AimAssist",
    "class": "LocalScript",
-   "bytes": 4383,
-   "sha1": "802a2ce3738a1d61abae8581249173ce60e7c88b"
+   "bytes": 4535,
+   "sha1": "b3d411d453b73517b68eea8cda9a4a9490803fe9"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
@@ -96,8 +103,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/Crosshair.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.Crosshair",
    "class": "LocalScript",
-   "bytes": 1778,
-   "sha1": "0e4ddbf328ae1ebfd10442300e744e1470884242"
+   "bytes": 2004,
+   "sha1": "a10d525bb24990d5df61d2c60ee201b99e0c1141"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",

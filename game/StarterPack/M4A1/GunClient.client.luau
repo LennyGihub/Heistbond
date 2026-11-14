@@ -1,5 +1,9 @@
 --!strict
--- M4A1 client: input, over-the-shoulder + first-person aiming, recoil, reload animation, HUD and local effects.
+-- Gun client (the same script in every gun Tool; stats from WeaponConfig[tool.Name]): input,
+-- over-the-shoulder + first-person aiming, recoil, reload animation, HUD and local effects.
+-- Guns with a Scope in their config (the sniper): aiming looks through the scope instead - the camera
+-- goes to the eye, the body and gun are hidden, a scope overlay shows, the mouse wheel zooms, and the
+-- mouse turns slower the more you zoom. Shots fired through the scope go to its centre.
 -- The server (WeaponServer) decides hits, damage and ammo; this script predicts them for instant feel.
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -69,6 +73,14 @@ local blindHold: CFrame? = nil -- blind fire: the gun's hold this frame (torso s
 local blindAlpha = 0 -- 0..1 blend from the normal hold to the blind-fire hold (animates in and out)
 local lastBlindC0: CFrame? = nil -- the last blind-fire hold, to blend back out of it
 local fireReady = false -- the gun is up (shouldered / held out for blind fire): shots may leave
+-- scope (only for guns whose config has a Scope)
+local scoped = false
+local scopeFov = 10
+local scopeYaw, scopePitch = 0, 0
+local scopeGui: ScreenGui? = nil
+local scopeZoomLabel: TextLabel? = nil
+local SCOPE_SENS = 0.0045 -- radians of turn per pixel of mouse movement at 70 degrees FOV
+local setScoped: (on: boolean) -> ()
 local BLIND_ROLL = math.rad(90) -- blind fire: the gun is held on its side (top to the left)
 -- blind fire recoil (visual): every shot throws the gun hard back along the barrel and twists it
 -- about the barrel (neither changes where it points), and tips the muzzle only a little (up/aside),
@@ -195,7 +207,7 @@ local function buildHud()
 	accent.BorderSizePixel = 0
 	corner(accent, 0.5)
 	accent.Parent = panel
-	label(panel, tool.Name .. "  SUPPRESSED", UDim2.fromScale(0.11, 0.1), UDim2.fromScale(0.84, 0.24), 16, Enum.TextXAlignment.Left).TextTransparency = 0.35
+	label(panel, cfg.Label or (tool.Name .. "  SUPPRESSED"), UDim2.fromScale(0.11, 0.1), UDim2.fromScale(0.84, 0.24), 16, Enum.TextXAlignment.Left).TextTransparency = 0.35
 	ammoLabel = label(panel, "", UDim2.fromScale(0.11, 0.34), UDim2.fromScale(0.42, 0.56), 52, Enum.TextXAlignment.Left)
 	reserveLabel = label(panel, "", UDim2.fromScale(0.5, 0.47), UDim2.fromScale(0.45, 0.36), 26, Enum.TextXAlignment.Left)
 	panel.Parent = g
@@ -313,6 +325,9 @@ local function fireOnce()
 	local origin = shotOrigin(params)
 	-- the shot leaves along the barrel (where the gun really points), not toward the crosshair
 	local dir = handle.CFrame.LookVector
+	if scoped then -- looking through the scope: the shot goes to its centre
+		dir = (aimTarget(params) - origin).Unit
+	end
 	-- random direction inside a cone (uniform over the disc)
 	local blind = blindHold ~= nil
 	local spread = math.rad((aiming and cfg.AimSpread or cfg.HipSpread) + bloom + (blind and BLIND_SPREAD or 0)) * math.sqrt(math.random())
@@ -539,6 +554,118 @@ local function updateViewArms(handleCF: CFrame, camCF: CFrame)
 	end
 end
 
+-- scope overlay: the scope picture (the Roblox weapons kit's), black around it, zoom level below
+local function buildScopeGui(): ScreenGui
+	local g = Instance.new("ScreenGui")
+	g.Name = "ScopeOverlay"
+	g.IgnoreGuiInset = true
+	g.ResetOnSpawn = false
+	g.DisplayOrder = 8
+	g.Enabled = false
+	local img = Instance.new("ImageLabel")
+	img.Name = "Scope"
+	img.AnchorPoint = Vector2.new(0.5, 0.5)
+	img.Position = UDim2.fromScale(0.5, 0.5)
+	img.Size = UDim2.fromScale(1, 1)
+	img.BackgroundTransparency = 1
+	img.Image = (cfg.Scope :: any).Image
+	img.Parent = g
+	local ar = Instance.new("UIAspectRatioConstraint")
+	ar.AspectRatio = 1
+	ar.Parent = img
+	for _, side in { -1, 1 } do
+		local f = Instance.new("Frame")
+		f.BackgroundColor3 = Color3.new(0, 0, 0)
+		f.BorderSizePixel = 0
+		f.AnchorPoint = Vector2.new(if side < 0 then 1 else 0, 0)
+		f.Position = UDim2.new(if side < 0 then 0 else 1, 0, 0, 0)
+		f.Size = UDim2.fromScale(2, 1)
+		f.Parent = img
+	end
+	local zl = Instance.new("TextLabel")
+	zl.Name = "Zoom"
+	zl.AnchorPoint = Vector2.new(0.5, 1)
+	zl.Position = UDim2.fromScale(0.5, 0.93)
+	zl.Size = UDim2.fromScale(0.2, 0.04)
+	zl.BackgroundTransparency = 1
+	zl.TextColor3 = Color3.new(1, 1, 1)
+	zl.TextTransparency = 0.3
+	zl.TextScaled = true
+	zl.Font = Enum.Font.GothamBold
+	zl.Text = ""
+	zl.Parent = g
+	scopeZoomLabel = zl
+	g.Parent = player:WaitForChild("PlayerGui")
+	return g
+end
+
+-- one wheel notch: +1 zooms in, -1 zooms out
+local function scopeZoomStep(dir: number)
+	local sc = cfg.Scope :: any
+	if not sc then
+		return
+	end
+	if dir > 0 then
+		scopeFov = math.max(sc.MinFov, scopeFov / 1.25)
+	else
+		scopeFov = math.min(sc.MaxFov, scopeFov * 1.25)
+	end
+end
+
+local function onScopeZoom(_: string, state: Enum.UserInputState, input: InputObject)
+	if state == Enum.UserInputState.Change then
+		scopeZoomStep(if input.Position.Z > 0 then 1 else -1) -- wheel up: zoom in
+	end
+	return Enum.ContextActionResult.Sink
+end
+
+-- look through the scope (or stop): camera to the eye under this script's control, body hidden,
+-- overlay on, the wheel zooms
+setScoped = function(on: boolean)
+	if on == scoped then
+		return
+	end
+	scoped = on
+	local cam = Workspace.CurrentCamera
+	local char = player.Character
+	if on then
+		-- open the scope on whatever was under the screen centre, seen from the eye
+		local look = cam.CFrame.LookVector
+		local head = char and char:FindFirstChild("Head") :: BasePart?
+		if head then
+			local eye = head.Position + Vector3.new(0, 0.25, 0)
+			local to = aimTarget(rayParams()) - eye
+			if to.Magnitude > 1 then
+				look = to.Unit
+			end
+		end
+		scopePitch = math.asin(math.clamp(look.Y, -1, 1))
+		scopeYaw = math.atan2(-look.X, -look.Z)
+		scopeFov = (cfg.Scope :: any).StartFov
+		cam.CameraType = Enum.CameraType.Scriptable
+		local g = scopeGui or buildScopeGui()
+		scopeGui = g
+		g.Enabled = true
+		ContextActionService:BindActionAtPriority("ScopeZoom", onScopeZoom, false, Enum.ContextActionPriority.High.Value, Enum.UserInputType.MouseWheel)
+	else
+		ContextActionService:UnbindAction("ScopeZoom")
+		if scopeGui then
+			scopeGui.Enabled = false
+		end
+		-- hand the camera back, still looking the same way
+		local rot = cam.CFrame.Rotation
+		cam.CameraType = Enum.CameraType.Custom
+		cam.CFrame = CFrame.new(cam.CFrame.Position) * rot
+		if char then
+			for _, d in char:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.LocalTransparencyModifier = 0
+				end
+			end
+		end
+	end
+end
+
 local function renderStep(dt: number)
 	local cam = Workspace.CurrentCamera
 	local hum = humanoid
@@ -550,7 +677,7 @@ local function renderStep(dt: number)
 	local torso = GunPose.torsoFor(char)
 	local weld = handle:FindFirstChild("GunHold") :: Weld?
 	local dist = (cam.CFrame.Position - cam.Focus.Position).Magnitude
-	local firstPerson = dist < 1.2
+	local firstPerson = dist < 1.2 and not scoped
 	local now = os.clock()
 	-- blind fire over low cover (CoverClient sets BlindGrip): the gun rests on the cover, pointed at the crosshair
 	local blindGrip = char:GetAttribute("BlindGrip")
@@ -569,15 +696,42 @@ local function renderStep(dt: number)
 	char:SetAttribute("BlockSprint", triggerDown)
 	local sprinting = char:GetAttribute("Sprinting") == true and not aiming
 	sprintAlpha += ((sprinting and 1 or 0) - sprintAlpha) * math.min(1, dt * (sprinting and 7 or 12))
+	setScoped(cfg.Scope ~= nil and aiming and not reloading)
 	local fov = if firstPerson then (aiming and FP_AIM_FOV or FP_FOV + SPRINT_FOV * sprintAlpha) else (aiming and cfg.AimFov or BASE_FOV)
-	cam.FieldOfView += (fov - cam.FieldOfView) * alpha
+	if scoped then
+		fov = scopeFov
+	end
+	cam.FieldOfView += (fov - cam.FieldOfView) * (if scoped then math.min(1, dt * 20) else alpha)
 
 	-- recoil: the aim is pushed to an offset that springs back to where you were aiming
 	recoilTarget *= math.exp(-dt * 7)
 	recoilCur = recoilCur:Lerp(recoilTarget, math.min(1, dt * 30))
 	local rd = recoilCur - recoilApplied
 	recoilApplied = recoilCur
-	cam.CFrame *= CFrame.Angles(rd.X, rd.Y, 0)
+	if scoped then
+		-- through the scope this script turns the camera itself: the mouse turns it slower the more you
+		-- zoom in, recoil kicks it, and it sits at the eye
+		local delta = UserInputService:GetMouseDelta()
+		local sens = SCOPE_SENS * gameSettings.MouseSensitivity * (scopeFov / 70)
+		scopeYaw -= delta.X * sens + rd.Y
+		scopePitch = math.clamp(scopePitch - delta.Y * sens + rd.X, -1.4, 1.4)
+		local head = char:FindFirstChild("Head") :: BasePart?
+		local eye = if head then head.Position + Vector3.new(0, 0.25, 0) else cam.CFrame.Position
+		cam.CFrame = CFrame.new(eye) * CFrame.fromOrientation(scopePitch, scopeYaw, 0)
+		cam.Focus = cam.CFrame
+		-- keep the body and the gun out of the view
+		for _, d in char:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = 1
+			end
+		end
+		local zl = scopeZoomLabel
+		if zl then
+			zl.Text = string.format("x%.1f", 70 / scopeFov)
+		end
+	else
+		cam.CFrame *= CFrame.Angles(rd.X, rd.Y, 0)
+	end
 	bloom = math.max(0, bloom - dt * 3)
 	kick *= math.exp(-dt * 14)
 	do
@@ -596,14 +750,16 @@ local function renderStep(dt: number)
 			shoulderOffset = Vector2.new(-shoulderOffset.X, shoulderOffset.Y)
 		end
 		camOffset = camOffset:Lerp(shoulderOffset, alpha)
-		local pull = aimAlpha * math.max(0, dist - AIM_DISTANCE)
+		local pull = if scoped then 0 else aimAlpha * math.max(0, dist - AIM_DISTANCE)
 		local from = cam.CFrame.Position
 		local to = cam.CFrame:PointToWorldSpace(Vector3.new(camOffset.X, camOffset.Y, -pull))
 		local hit = Workspace:Raycast(from, to - from, camRayParams())
 		if hit then
 			to = hit.Position - (to - from).Unit * 0.3
 		end
-		cam.CFrame = CFrame.new(to) * cam.CFrame.Rotation
+		if not scoped then
+			cam.CFrame = CFrame.new(to) * cam.CFrame.Rotation
+		end
 	end
 
 	local reloadCF = GunAnim.step(tool, torso)
@@ -775,6 +931,7 @@ local function unequip()
 	reloading = false
 	GunAnim.stop(tool)
 	setAiming(false)
+	setScoped(false)
 	if firstPersonToggle then
 		toggleView()
 	end
@@ -817,8 +974,17 @@ local function unequip()
 end
 
 -- Studio-only test hooks (tests can't click): tool attribute TestFire = N fires an N-round burst,
--- TestAiming = true/false holds/releases the aim
+-- TestAiming = true/false holds/releases the aim, TestZoom = +-N turns the scope's wheel N notches
 if IS_STUDIO then
+	tool:GetAttributeChangedSignal("TestZoom"):Connect(function()
+		local n = tool:GetAttribute("TestZoom")
+		if typeof(n) == "number" and n ~= 0 then
+			tool:SetAttribute("TestZoom", nil)
+			for _ = 1, math.abs(n) do
+				scopeZoomStep(math.sign(n))
+			end
+		end
+	end)
 	tool:GetAttributeChangedSignal("TestAiming"):Connect(function()
 		setAiming(tool:GetAttribute("TestAiming") == true)
 	end)
