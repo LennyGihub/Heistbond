@@ -253,6 +253,40 @@ local function aimTarget(params: RaycastParams): Vector3
 	return r and r.Position or ray.Origin + ray.Direction * cfg.Range
 end
 
+-- a point far along the camera's centre line: the gun is POINTED this way (parallel to the view), so
+-- it doesn't twist toward whatever is under the crosshair right next to you (a wall at your side).
+-- The shots themselves still go to the crosshair (aimTarget).
+local function aimFar(): Vector3
+	if IS_STUDIO then
+		local t = tool:GetAttribute("TestAim")
+		if typeof(t) == "Vector3" then
+			return t
+		end
+	end
+	local cam = Workspace.CurrentCamera
+	local vp = cam.ViewportSize
+	local ray = cam:ViewportPointToRay(vp.X / 2, vp.Y / 2)
+	return ray.Origin + ray.Direction * cfg.Range
+end
+
+-- where a shot really starts: the muzzle, unless the gun pokes into a wall (then at that wall's
+-- surface, so it can't shoot through). Checked from the body (from the gun's handle in blind fire,
+-- where the body is below the cover's top). WeaponServer does the same check.
+local function shotOrigin(params: RaycastParams): Vector3
+	local muzzlePos = muzzle.WorldPosition
+	local char = player.Character
+	local body = char and (char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")) :: BasePart?
+	local from = if blindHold ~= nil then handle.Position elseif body then body.Position else nil
+	if not from then
+		return muzzlePos
+	end
+	local hit = Workspace:Raycast(from, muzzlePos - from, params)
+	if hit then
+		return hit.Position + hit.Normal * 0.05
+	end
+	return muzzlePos
+end
+
 local reload: () -> ()
 
 local function fireOnce()
@@ -268,7 +302,7 @@ local function fireOnce()
 	updateHud()
 
 	local params = rayParams()
-	local origin = muzzle.WorldPosition
+	local origin = shotOrigin(params)
 	local target = aimTarget(params)
 	local dir = (target - origin).Unit
 	-- random direction inside a cone (uniform over the disc)
@@ -613,7 +647,7 @@ local function renderStep(dt: number)
 		if torso then
 			local wantYaw, wantPitch = 0, 0
 			if engaged then
-				wantYaw, wantPitch = GunPose.anglesTo(torso, 1, aimTarget(rayParams()))
+				wantYaw, wantPitch = GunPose.anglesTo(torso, 1, aimFar())
 			end
 			local rate = aiming and 1 or math.min(1, dt * 18) -- aiming: the gun follows the mouse exactly
 			poseYaw += (wantYaw - poseYaw) * rate
@@ -632,7 +666,7 @@ local function renderStep(dt: number)
 		if weld and torso and typeof(blindGrip) == "Vector3" then
 			-- blind fire: the pistol grip is held where CoverClient says (over the low cover), the gun
 			-- turned on its side and pointed exactly where the shots go (the screen centre)
-			local d = aimTarget(rayParams()) - blindGrip
+			local d = aimFar() - blindGrip
 			local flatD = Vector3.new(d.X, 0, d.Z)
 			local fwd = if flatD.Magnitude > 0.1 then flatD.Unit else torso.CFrame.LookVector
 			local tilt = math.clamp(math.atan2(d.Y, math.max(flatD.Magnitude, 0.1)), -0.3, 0.6)

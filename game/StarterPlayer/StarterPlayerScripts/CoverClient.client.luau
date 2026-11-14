@@ -17,7 +17,8 @@
 --  * at the end of a tall wall (screen left/right, from the camera's point of view):
 --    - looking toward the screen-left end (moved there with the left key), the camera swings over the
 --      left shoulder (character attribute CamShoulder = -1, read by GunClient; moved here when unarmed)
---    - aiming at the screen-right end: the character only leans out so the gun clears the corner
+--    - aiming at the screen-right end: the character steps out just enough that the gun clears the
+--      corner (half the body stays behind it)
 --    - aiming at the screen-left end: it steps right out past the corner, so the aim camera (over the
 --      right shoulder) isn't blocked by the wall
 --    letting go of the aim walks it back to its spot in cover
@@ -52,7 +53,8 @@ local MAX_WALL_SLOPE = 0.35 -- |normal.Y| above this is a floor/ramp, not a wall
 local REACH_PROBES = { 2.6, 2.2, 1.8, 1.5, 1.25, 1.0 } -- where to look for the end of the wall
 local EDGE_STOP = 1.25 -- stop sliding when the wall ends this far to the side (shoulder at the corner)
 local EDGE_REACH = 1.8 -- aiming this close to a tall wall's end peeks around it
-local PEEK_LEAN = 0.3 -- screen-right end: the body stays this far inside the corner, the gun clears it
+local PEEK_OUT = 0.7 -- screen-right end: the body steps this far past the corner, so the gun (on the
+-- right shoulder) is fully clear of the wall
 local PEEK_REVEAL = 3.4 -- screen-left end: step this far past the corner (the aim camera sits right)
 local PEEK_SPEED = 9 -- studs/s when stepping out / back in
 local SHOULDER_SHIFT = 1.6 -- unarmed: how far the camera swings to the left shoulder
@@ -324,7 +326,7 @@ local function step(dt: number)
 			local base = root.Position
 			local target: Vector3? = nil
 			if dR then
-				target = base + toRight * math.max(0, (dR :: number) - PEEK_LEAN)
+				target = base + toRight * ((dR :: number) + PEEK_OUT)
 			elseif dL then
 				target = base + toLeft * ((dL :: number) + PEEK_REVEAL)
 			end

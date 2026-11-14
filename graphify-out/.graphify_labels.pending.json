@@ -12,5 +12,5 @@
   "10": "Crosshair.client.luau",
   "11": "CoverPose.luau",
   "12": "CoverServer.server.luau",
-  "13": "GunPose.luau"
+  "13": "renderStep"
 }

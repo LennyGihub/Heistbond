@@ -115,6 +115,16 @@ FireRemote.OnServerEvent:Connect(function(player: Player, origin: any, direction
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	local fxFolder = Workspace:FindFirstChild("WeaponFx")
 	params.FilterDescendantsInstances = fxFolder and { char, fxFolder } or { char }
+	-- no shooting through walls: if anything solid is between the body and the claimed muzzle (the
+	-- gun poking into a wall), the shot starts at that surface instead. Blind fire over low cover
+	-- checks from the gun's handle, since the body is below the cover's top.
+	local body = (char:FindFirstChild("UpperTorso") or head) :: BasePart
+	local gunHandle = tool:FindFirstChild("Handle") :: BasePart?
+	local from = if char:GetAttribute("CoverBlind") == true and gunHandle then gunHandle.Position else body.Position
+	local block = Workspace:Raycast(from, origin - from, params)
+	if block then
+		origin = block.Position + block.Normal * 0.05
+	end
 	local result = Workspace:Raycast(origin, direction.Unit * cfg.Range, params)
 
 	local hitPos = origin + direction.Unit * cfg.Range
