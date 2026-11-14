@@ -8,8 +8,9 @@
 --  * low walls (from about knee to chest high): the character turns side-on with its shoulder to the
 --    wall, bent forward so its head stays under the top; still it kneels, moving it walks crouched
 --    (left/right turns it around). The camera rises a little so the screen centre (the crosshair) is
---    above the wall. Firing without aiming = blind fire: the gun is held up over the wall (character
---    attribute GunLift, read by GunClient) while the body stays down
+--    above the wall. Firing without aiming = blind fire: the gun rests flat on top of the wall, by the
+--    wall-side shoulder (character attribute BlindGrip = where its grip goes, read by GunClient, which
+--    points it at the crosshair) while the body stays down
 --  * empty hands: palms pressed on the wall (CoverPose); with a gun the arms stay on the gun
 --  * aiming (right mouse) leaves the cover pose to shoot (behind a low wall: stand up and shoot over
 --    it); letting go goes back into cover if the wall is still there. Jumping leaves cover.
@@ -35,7 +36,8 @@ local MIN_LOW = 2.2 -- a wall lower than this (studs above the ground) is too lo
 local TALL_H = 4.6 -- a wall at least this high is a tall wall (stand); lower = low wall (crouch)
 local LOW_CAM_ABOVE = 1.4 -- behind a low wall the camera looks from this high above the wall's top
 local BLIND_HOLD = 0.6 -- blind fire keeps the gun up this long after the trigger is released
-local MUZZLE_ABOVE = 0.5 -- blind fire: the muzzle goes this far above the wall's top
+local GRIP_ABOVE = 0.4 -- blind fire: the gun's grip rests this far above the wall's top
+local GRIP_IN = 0.62 -- ...this far back from the wall's face (toward the body, so the hands reach it)
 local COVER_ACCEL = 30
 local BACK_GAP = CoverPose.BACK_GAP -- gap between the back and the wall
 local TURN_RATE = math.rad(540)
@@ -54,7 +56,7 @@ local airFor = 0
 local lowTop: number? = nil -- world height of the low wall's top, nil = tall wall
 local blindUntil = 0 -- blind firing until this time (os.clock)
 local blinding = false
-local gunLift = 0
+local blindGrip: Vector3? = nil
 local touchDist: number? = nil -- root-to-wall distance where the body touches the wall
 local blockedFor = 0
 local lastDist: number? = nil
@@ -174,11 +176,11 @@ local function leave(why: string)
 	inCover = false
 	suspended = false
 	slide = 0
-	blinding, blindUntil, gunLift = false, 0, 0
+	blinding, blindUntil, blindGrip = false, 0, nil
 	local char = player.Character
 	if char then
 		setLocalAttr(char, false)
-		char:SetAttribute("GunLift", nil)
+		char:SetAttribute("BlindGrip", nil)
 	end
 	send(false)
 end
@@ -258,8 +260,8 @@ local function step(dt: number)
 	local aiming = char:GetAttribute("Aiming") == true
 	if aiming and not suspended then
 		suspended = true
-		blinding, blindUntil, gunLift = false, 0, 0
-		char:SetAttribute("GunLift", nil)
+		blinding, blindUntil, blindGrip = false, 0, nil
+		char:SetAttribute("BlindGrip", nil)
 		setLocalAttr(char, false)
 		send(false)
 	elseif not aiming and suspended then
@@ -379,17 +381,23 @@ local function step(dt: number)
 		blindUntil = os.clock() + BLIND_HOLD
 	end
 	blinding = lowTop ~= nil and armed and os.clock() < blindUntil
-	-- raise the gun until its muzzle is MUZZLE_ABOVE over the wall's top (measured, so it works
-	-- whatever pose the gun is in)
-	local tool = char:FindFirstChildOfClass("Tool")
-	local handle = tool and tool:FindFirstChild("Handle")
-	local muzzle = handle and handle:FindFirstChild("Muzzle") :: Attachment?
-	local wantLift = 0
-	if blinding and lowTop and muzzle then
-		wantLift = math.clamp(gunLift + (lowTop :: number) + MUZZLE_ABOVE - muzzle.WorldPosition.Y, 0, 3)
+	-- the gun rests on top of the wall: grip just behind the wall's near edge, in front of the chest
+	-- (CoverPose turns the chest toward the wall), the barrel over the top
+	if blinding and lowTop then
+		local gripIn, gripUp, gripAhead = GRIP_IN, GRIP_ABOVE, 0
+		if IS_STUDIO then -- tuning hook: player attribute CoverGrip = Vector3(in, above, ahead)
+			local t = player:GetAttribute("CoverGrip")
+			if typeof(t) == "Vector3" then
+				gripIn, gripUp, gripAhead = t.X, t.Y, t.Z
+			end
+		end
+		local edge = h.Position + normal * gripIn -- just in front of the wall's face, at ray height
+		local want = Vector3.new(edge.X, (lowTop :: number) + gripUp, edge.Z) + right * side * gripAhead
+		blindGrip = if blindGrip then (blindGrip :: Vector3):Lerp(want, math.min(1, dt * 15)) else want
+	else
+		blindGrip = nil
 	end
-	gunLift += (wantLift - gunLift) * math.min(1, dt * 10)
-	char:SetAttribute("GunLift", if gunLift > 0.01 then gunLift else nil)
+	char:SetAttribute("BlindGrip", blindGrip)
 
 	send(true)
 end
@@ -454,6 +462,10 @@ RunService.Stepped:Connect(function(_, dt)
 			p.side += (wantSide - p.side) * math.min(1, dt * 8)
 		end
 		p.armed = char:FindFirstChildOfClass("Tool") ~= nil
+		if IS_STUDIO then -- tuning hook: player attribute CoverTwist overrides the blind-fire chest turn
+			local t = player:GetAttribute("CoverTwist")
+			p.twist = if typeof(t) == "number" then t else nil
+		end
 		p.blind = (p.blind or 0) + ((blind and 1 or 0) - (p.blind or 0)) * math.min(1, dt * 12)
 		local params = rayParams(char)
 		-- where the wall really is (tall: behind the back - the twisted shoulders can keep the body off
@@ -521,6 +533,6 @@ end
 player.CharacterAdded:Connect(function()
 	inCover, suspended, slide = false, false, 0
 	lowTop, camDrop = nil, 0
-	blinding, blindUntil, gunLift = false, 0, 0
+	blinding, blindUntil, blindGrip = false, 0, nil
 	lastSent = nil
 end)

@@ -64,7 +64,9 @@ local aimAlpha = 0 -- 0 = low ready, 1 = shouldered (smoothed)
 local camOffset = Vector2.zero
 local lastPoseSent = 0
 local sentAiming, sentPitch, sentYaw = false, 0, 0
-local sentLift, gunLift = 0, 0 -- blind fire: how high the gun is held over low cover (studs)
+local sentBlind = false -- blind fire over low cover: last state told to the server
+local blindHold: CFrame? = nil -- blind fire: the gun's hold this frame (torso space)
+local BLIND_ROLL = math.rad(90) -- blind fire: the gun is held on its side (top to the left)
 local kick = Vector2.zero -- gun recoil (back, pitch up), springs back to zero
 local sway = Vector2.zero -- first-person weapon sway from camera turning
 local lastLook: Vector3? = nil
@@ -231,6 +233,12 @@ local function rayParams(): RaycastParams
 end
 
 local function aimTarget(params: RaycastParams): Vector3
+	if IS_STUDIO then -- test hook: tool attribute TestAim (world point) replaces the screen-centre aim
+		local t = tool:GetAttribute("TestAim")
+		if typeof(t) == "Vector3" then
+			return t
+		end
+	end
 	local cam = Workspace.CurrentCamera
 	local vp = cam.ViewportSize
 	local ray = cam:ViewportPointToRay(vp.X / 2, vp.Y / 2)
@@ -487,8 +495,9 @@ local function renderStep(dt: number)
 	local dist = (cam.CFrame.Position - cam.Focus.Position).Magnitude
 	local firstPerson = dist < 1.2
 	local now = os.clock()
-	-- blind fire over low cover (CoverClient sets GunLift): the gun is up and pointed at the crosshair
-	local engaged = aiming or (now - lastShot < FACE_AFTER_SHOT) or char:GetAttribute("GunLift") ~= nil
+	-- blind fire over low cover (CoverClient sets BlindGrip): the gun rests on the cover, pointed at the crosshair
+	local blindGrip = char:GetAttribute("BlindGrip")
+	local engaged = aiming or (now - lastShot < FACE_AFTER_SHOT) or typeof(blindGrip) == "Vector3"
 
 	-- no cursor; the camera follows the mouse freely
 	UserInputService.MouseIconEnabled = false
@@ -575,14 +584,10 @@ local function renderStep(dt: number)
 		-- not aiming: a steady low-ready carry that ignores the camera.
 		-- aiming / just fired: shouldered and pointed exactly at what's under the screen centre.
 		holdAlpha += ((engaged and 1 or 0) - holdAlpha) * math.min(1, dt * 14)
-		-- blind fire over low cover: CoverClient sets GunLift (studs up) and the gun is held that high
-		local liftAttr = char:GetAttribute("GunLift")
-		gunLift = if typeof(liftAttr) == "number" then math.clamp(liftAttr, 0, 3) else 0
 		if torso then
 			local wantYaw, wantPitch = 0, 0
 			if engaged then
-				-- aim from the lifted gun: same as aiming from the normal spot at a target that much lower
-				wantYaw, wantPitch = GunPose.anglesTo(torso, 1, aimTarget(rayParams()) - Vector3.yAxis * gunLift)
+				wantYaw, wantPitch = GunPose.anglesTo(torso, 1, aimTarget(rayParams()))
 			end
 			local rate = aiming and 1 or math.min(1, dt * 18) -- aiming: the gun follows the mouse exactly
 			poseYaw += (wantYaw - poseYaw) * rate
@@ -597,9 +602,19 @@ local function renderStep(dt: number)
 		else
 			char:SetAttribute("AimYaw", nil)
 		end
-		if weld and torso then
-			local liftCF = if gunLift > 0 then CFrame.new(torso.CFrame:VectorToObjectSpace(Vector3.yAxis * gunLift)) else CFrame.identity
-			weld.C0 = liftCF * GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
+		blindHold = nil
+		if weld and torso and typeof(blindGrip) == "Vector3" then
+			-- blind fire: the pistol grip is held where CoverClient says (over the low cover), the gun
+			-- turned on its side and pointed exactly where the shots go (the screen centre)
+			local d = aimTarget(rayParams()) - blindGrip
+			local flatD = Vector3.new(d.X, 0, d.Z)
+			local fwd = if flatD.Magnitude > 0.1 then flatD.Unit else torso.CFrame.LookVector
+			local tilt = math.clamp(math.atan2(d.Y, math.max(flatD.Magnitude, 0.1)), -0.3, 0.6)
+			local look = fwd * math.cos(tilt) + Vector3.yAxis * math.sin(tilt)
+			blindHold = torso.CFrame:ToObjectSpace(GunPose.handleAt(blindGrip, look, BLIND_ROLL)) * kickCF
+			weld.C0 = blindHold :: CFrame
+		elseif weld and torso then
+			weld.C0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
 		end
 		local leftIK = handle:FindFirstChild("LeftHandIK") :: Attachment?
 		if leftIK and not GunAnim.isReloading(tool) then
@@ -609,10 +624,11 @@ local function renderStep(dt: number)
 	wasFirstPerson = firstPerson
 
 	-- tell the server so everyone else sees where the gun points
-	local lift = if firstPerson then 0 else gunLift
-	if now - lastPoseSent > 0.1 and ((engaged or firstPerson) ~= sentAiming or math.abs(pitch - sentPitch) > 0.03 or math.abs(yaw - sentYaw) > 0.03 or math.abs(lift - sentLift) > 0.05) then
-		lastPoseSent, sentAiming, sentPitch, sentYaw, sentLift = now, engaged or firstPerson, pitch, yaw, lift
-		PoseRemote:FireServer(engaged or firstPerson, pitch, yaw, lift)
+	-- (blind fire: the exact hold, in torso space, refreshed 10 times a second)
+	local blindNow = blindHold ~= nil and not firstPerson
+	if now - lastPoseSent > 0.1 and (blindNow or blindNow ~= sentBlind or (engaged or firstPerson) ~= sentAiming or math.abs(pitch - sentPitch) > 0.03 or math.abs(yaw - sentYaw) > 0.03) then
+		lastPoseSent, sentAiming, sentPitch, sentYaw, sentBlind = now, engaged or firstPerson, pitch, yaw, blindNow
+		PoseRemote:FireServer(engaged or firstPerson, pitch, yaw, if blindNow then blindHold else nil)
 	end
 
 	-- Studio-only test hook: set tool attribute TestCam (Vector3, character space) to film the gun
@@ -735,7 +751,7 @@ tool.Equipped:Connect(function()
 			end
 		end))
 	end
-	sentAiming, sentPitch, sentYaw, sentLift, gunLift = false, 0, 0, 0, 0
+	sentAiming, sentPitch, sentYaw, sentBlind = false, 0, 0, false
 	GunAnim.remember(tool)
 	-- line the eye up with this gun's sight
 	local sightAtt = handle:FindFirstChild("Sight") :: Attachment?

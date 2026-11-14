@@ -33,6 +33,7 @@ export type State = {
 	low: number, -- 0 = tall wall (standing, back to it), 1 = low wall (side-on, crouched); smoothed
 	top: number?, -- world height of the low wall's top (sets how far to bend down)
 	blind: number?, -- 0..1 blind firing over a low wall
+	twist: number?, -- Studio tuning only: overrides BLIND_TWIST
 }
 
 CoverPose.BACK_GAP = 0.08 -- gap between the back and the wall (CoverClient keeps it)
@@ -57,6 +58,7 @@ local WALK_CROUCH = 1.35 -- hip drop while walking crouched
 local MIN_LEAN, MAX_LEAN = 0.45, 1.1 -- forward bend of the upper body behind a low wall (radians)
 local BLIND_STRAIGHTEN = 0.1 -- blind firing straightens the back this much, so the hands reach the raised gun
 local BLIND_DUCK = 0.5 -- ...and tucks the head down this much, so it stays under the top
+local BLIND_TWIST = 1.15 -- ...and turns the chest toward the wall, so both hands hold the gun over it
 local KNEEL_THIGH = 0.15 -- the kneeling thigh leans back this much (radians)
 local FRONT_FOOT = 0.85 -- kneeling: the front foot is this far ahead of the hip
 
@@ -243,7 +245,9 @@ function CoverPose.apply(char: Model, s: State)
 	end
 	lean = math.max(lean - BLIND_STRAIGHTEN * blind, 0.2)
 	local lRoot = CFrame.new(0, -lowDrop + bob * 0.6, 0)
-	local lWaist = A(-lean, 0, 0) -- bent forward (-X tips the upper body forward)
+	-- bent forward (-X tips the upper body forward). Blind fire first turns the chest to the wall (on
+	-- the `dir` side: +Y turns left), so the bend then leans it over toward the wall and the gun
+	local lWaist = A(0, -dir * (s.twist or BLIND_TWIST) * blind, 0) * A(-lean, 0, 0)
 	local lNeck = A(lean * 0.75 - BLIND_DUCK * blind, 0, 0) -- the head tips back up to keep looking ahead
 
 	set(root, tRoot:Lerp(lRoot, low), alpha)
