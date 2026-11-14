@@ -6,8 +6,9 @@
 -- Pose: back flat against the wall (the wall is right behind the root, which faces away from it),
 -- knees a little bent, upper body and head turned toward `side` (+1 = the character's right,
 -- -1 = its left). Empty hands: both palms flat on the wall, placed by a two-bone IK - the hand on the
--- look side out at shoulder height, the other one beside the hip. While sliding along the wall the legs do a sidestep shuffle driven by `phase`. With a weapon
--- in hand the arms are left to the gun's IK.
+-- look side out at shoulder height, the other one beside the hip; they sway a little with the steps.
+-- While sliding along the wall the legs do a chasse step driven by `phase`. With a weapon in hand the
+-- arms are left to the gun's IK.
 --
 -- Joint axes (R15 joint frames are body-aligned): +X swings a hanging limb forward, +Z moves it
 -- toward the body's +X (right), +Y turns left.
@@ -24,6 +25,24 @@ export type State = {
 }
 
 CoverPose.BACK_GAP = 0.08 -- gap between the back and the wall (CoverClient keeps it)
+
+-- chasse step: relative to the body each foot moves STEP_HALF studs either side of its spot; one
+-- full cycle (each foot steps once, STEP_LEN studs) moves the body STEP_LEN studs, which CoverClient
+-- uses to advance the phase so planted feet don't slide
+CoverPose.STEP_HALF = 0.45
+CoverPose.STEP_LEN = 4 * CoverPose.STEP_HALF
+
+-- one foot over a step cycle: sideways offset along the travel direction and how high it lifts.
+-- First half: in the air, swinging from behind to ahead (eased). Second half: planted, sliding back.
+local function foot(ph: number): (number, number)
+	local a = CoverPose.STEP_HALF
+	ph %= 2 * math.pi
+	if ph < math.pi then
+		local u = ph / math.pi
+		return -a + 2 * a * u * u * (3 - 2 * u), math.sin(ph)
+	end
+	return a - 2 * a * (ph - math.pi) / math.pi, 0
+end
 
 -- where the palms go on the wall (sideways past the shoulder, height in torso heights from the root)
 local LEAD_OUT, LEAD_UP = 1.05, 0.3
@@ -139,13 +158,9 @@ function CoverPose.apply(char: Model, s: State)
 	local step = math.clamp(s.step, 0, 1)
 	local ph = s.phase
 
-	-- sidestep: the leg on the travel side opens, then the other one closes up to it
-	local open = math.sin(ph)
-	local lift1 = math.max(0, math.sin(ph)) * step -- leading leg lifts while opening
-	local lift2 = math.max(0, -math.sin(ph)) * step -- trailing leg lifts while closing
-	local bob = math.abs(math.sin(ph)) * 0.08 * step
-
-	-- whole body: hips dropped a bit (slight crouch), turned a little toward the look side
+	-- whole body: hips dropped a bit (slight crouch), turned a little toward the look side; it rises
+	-- a touch while a foot is in the air (twice per step cycle)
+	local bob = 0.05 * step * (1 - math.cos(2 * ph)) / 2
 	local root = rig(char, "LowerTorso", "Root")
 	local waist = rig(char, "UpperTorso", "Waist")
 	set(root, CFrame.new(0, -0.32 + bob, 0) * A(0, -0.08 * side, 0), alpha)
@@ -154,19 +169,32 @@ function CoverPose.apply(char: Model, s: State)
 	-- head looks over the shoulder, toward the side
 	set(rig(char, "Head", "Neck"), A(0.05, -1.0 * side, 0), alpha)
 
-	-- legs: knees bent (matches the dropped hips), the leading leg (travel side) opens and lifts
-	local spread = 0.1 + 0.16 * open * step
+	-- legs: knees bent (matches the dropped hips). Sliding = a chasse step toward the look side: the
+	-- lead leg steps out while the other stands, then the other one steps in next to it; the feet
+	-- never cross. A foot on the ground moves back exactly as fast as the body slides (no foot slip).
+	-- hip-to-sole length, from the joints (the parts' sizes overlap on some avatars)
+	local legLen = 2
+	local hip, knee, ankle = rig(char, "RightUpperLeg", "RightHip"), rig(char, "RightLowerLeg", "RightKnee"), rig(char, "RightFoot", "RightAnkle")
+	local footPart = char:FindFirstChild("RightFoot") :: BasePart?
+	if hip and knee and ankle then
+		legLen = (hip.c1:Inverse() * knee.c0).Position.Magnitude + (knee.c1:Inverse() * ankle.c0).Position.Magnitude
+			+ (footPart and footPart.Size.Y / 2 or 0.2)
+	end
+	legLen *= 0.8 -- the knees are bent, so the foot sits closer to the hip than a straight leg
+	-- `bias`: while stepping the lead foot works a little further out and the other one a little
+	-- further in, so the feet come together (closed) and spread (open) but never cross
+	local function leg(prefix: string, base: number, footPh: number, bias: number)
+		local off, lift = foot(footPh)
+		local hipZ = base + dir * (off + bias) * step / legLen -- +Z swings the foot toward the body's right
+		local l = lift * step
+		set(rig(char, prefix .. "UpperLeg", prefix .. "Hip"), A(0.32 + l * 0.45, 0, hipZ), alpha)
+		set(rig(char, prefix .. "LowerLeg", prefix .. "Knee"), A(-0.55 - l * 0.85, 0, 0), alpha)
+		set(rig(char, prefix .. "Foot", prefix .. "Ankle"), A(0.22 + l * 0.4, 0, -hipZ), alpha)
+	end
 	local rLead = dir > 0
-	local liftR = rLead and lift1 or lift2
-	local liftL = rLead and lift2 or lift1
-	local openR = rLead and spread or 0.08
-	local openL = rLead and 0.08 or spread
-	set(rig(char, "RightUpperLeg", "RightHip"), A(0.32 + liftR * 0.5, 0, openR), alpha)
-	set(rig(char, "RightLowerLeg", "RightKnee"), A(-0.55 - liftR * 0.8, 0, 0), alpha)
-	set(rig(char, "RightFoot", "RightAnkle"), A(0.22 + liftR * 0.3, 0, -openR), alpha)
-	set(rig(char, "LeftUpperLeg", "LeftHip"), A(0.32 + liftL * 0.5, 0, -openL), alpha)
-	set(rig(char, "LeftLowerLeg", "LeftKnee"), A(-0.55 - liftL * 0.8, 0, 0), alpha)
-	set(rig(char, "LeftFoot", "LeftAnkle"), A(0.22 + liftL * 0.3, 0, openL), alpha)
+	local h = CoverPose.STEP_HALF
+	leg("Right", 0.07, rLead and ph or ph + math.pi, rLead and h or -h)
+	leg("Left", -0.07, rLead and ph + math.pi or ph, rLead and -h or h)
 
 	if s.armed or not root or not waist then
 		return -- the gun's IK owns the arms
@@ -202,12 +230,18 @@ function CoverPose.apply(char: Model, s: State)
 	local backPrefix = dir > 0 and "Left" or "Right"
 	local up = Vector3.yAxis
 	-- at the end of the wall the lead hand grips its edge instead of pressing on thin air
-	local leadOut = math.min(sx + LEAD_OUT, (s.reach or math.huge) + 0.1)
-	local leadHand = palm(leadPrefix, dir * leadOut, hy * LEAD_UP, up * 0.3 + right * dir)
-	local backHand = palm(backPrefix, -dir * (sx + BACK_OUT), hy * BACK_UP, -up + right * -dir * 0.6)
-	-- elbows point outward, so the arms lie flat along the wall
-	local leadPole = torso.Position + right * dir * 3 + up * 0.5
-	local backPole = torso.Position + right * -dir * 3 + up * 0.5
+	-- while stepping the hands drift a little along the wall and back (they follow the body only partly)
+	local sway = math.sin(ph) * step
+	local leadOut = math.min(sx + LEAD_OUT - 0.12 * sway, (s.reach or math.huge) + 0.1)
+	local leadHand = palm(leadPrefix, dir * leadOut, hy * LEAD_UP + 0.04 * sway, up * 0.3 + right * dir)
+	local backHand = palm(backPrefix, -dir * (sx + BACK_OUT + 0.1 * sway), hy * BACK_UP, -up + right * -dir * 0.6)
+	-- elbows: the lead arm runs sideways, so its elbow points down and a little off the wall; the back
+	-- arm runs down, so its elbow points out to the side. Each pole is well off its arm's line, so the
+	-- elbow can't flip around when the body bobs.
+	local leadShoulder = torso:PointToWorldSpace(Vector3.new(dir * sx, upper.Size.Y * 0.3, 0))
+	local backShoulder = torso:PointToWorldSpace(Vector3.new(-dir * sx, upper.Size.Y * 0.3, 0))
+	local leadPole = leadShoulder - up * 3 + n * 0.8
+	local backPole = backShoulder + right * -dir * 3 + n * 0.8
 	solveArm(char, leadPrefix, torso, leadHand, leadPole, alpha)
 	solveArm(char, backPrefix, torso, backHand, backPole, alpha)
 end

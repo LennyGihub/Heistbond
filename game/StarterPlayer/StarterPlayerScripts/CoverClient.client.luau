@@ -23,11 +23,11 @@ local IS_STUDIO = RunService:IsStudio()
 local UP = Vector3.yAxis
 
 local FIND_RANGE = 4.5 -- how far (studs, from the body's centre) a wall can be to take cover
-local COVER_SPEED = 5 -- sliding speed along the wall
+local COVER_SPEED = 3 -- sliding speed along the wall
 local COVER_ACCEL = 30
 local BACK_GAP = CoverPose.BACK_GAP -- gap between the back and the wall
 local TURN_RATE = math.rad(540)
-local SIDESTEP_LEN = 1.6 -- studs per sidestep cycle
+local SIDESTEP_LEN = CoverPose.STEP_LEN -- studs per chasse-step cycle (feet stay planted)
 local MAX_WALL_SLOPE = 0.35 -- |normal.Y| above this is a floor/ramp, not a wall
 local REACH_PROBES = { 2.6, 2.2, 1.8, 1.5, 1.25, 1.0 } -- where to look for the end of the wall
 local EDGE_STOP = 1.25 -- stop sliding when the wall ends this far to the side (shoulder at the corner)
