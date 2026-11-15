@@ -73,7 +73,22 @@ function NPCCommon.animate(hum: Humanoid, root: BasePart)
 	local walk = loadTrack(hum, WALK_ANIM, Enum.AnimationPriority.Movement)
 	local idle = loadTrack(hum, IDLE_ANIM, Enum.AnimationPriority.Idle)
 	idle:Play(0.3)
+	local model = hum.Parent
 	local conn = RunService.Heartbeat:Connect(function()
+		-- a posed NPC (hostage on its knees, crouched behind cover, hands up) has its joints set by the
+		-- script: the idle animation would be composed on top of that and spoil the pose
+		if model and model:GetAttribute("NoAnim") then
+			if idle.IsPlaying then
+				idle:Stop(0.1)
+			end
+			if walk.IsPlaying then
+				walk:Stop(0.1)
+			end
+			return
+		end
+		if not idle.IsPlaying then
+			idle:Play(0.3)
+		end
 		local v = root.AssemblyLinearVelocity
 		local ground = Vector3.new(v.X, 0, v.Z).Magnitude
 		if ground > 0.4 then
