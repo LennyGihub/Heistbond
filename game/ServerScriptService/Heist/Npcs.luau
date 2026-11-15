@@ -8,7 +8,12 @@
 --  * Aim a gun at a civilian: hands up (they can't raise the alarm while scared). Then "Attacher" with a
 --    zip tie: tied for good. The manager's card: "Subtiliser" from behind, or "Prendre" once he's tied.
 --  * After the alarm, guards fight; police squads come in and hunt the crew (pathfinding + bursts).
--- The heist (Run) owns the lifecycle: Npcs.spawnBank(mode), Npcs.clear(), Npcs.spawnPolice(n).
+-- The heist (Run) owns the lifecycle: Npcs.spawnBank(mode), Npcs.clear(), Npcs.spawnPolice(n, unit).
+--  * F with a gun out (Npcs.shout): the civilians in front of you drop to their knees and become
+--    hostages. Zip-tie them; hostages you stop watching for a while stand up and run out of the bank
+--    (staff raise the alarm on the way).
+--  * Guards and police fight from cover as a squad (NpcCombat); the people in the bank live their day
+--    and react to each other (NpcLife); every NPC has its own voice (Voices + NpcLines).
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
@@ -23,6 +28,12 @@ local Shot = ReplicatedStorage:WaitForChild("WeaponRemotes"):WaitForChild("Shot"
 local Heist = ReplicatedStorage:WaitForChild("Heist")
 local Sfx = require(Heist:WaitForChild("Sfx"))
 local Net = require(Heist:WaitForChild("Net"))
+local Voices = require(Heist:WaitForChild("Voices"))
+local Lines = require(script.Parent:WaitForChild("NpcLines"))
+local Nav = require(script.Parent:WaitForChild("NpcNav"))
+local ServerStorage = game:GetService("ServerStorage")
+local Life: any = nil -- NpcLife, NpcCombat: required in Npcs.init (they get this module)
+local Combat: any = nil
 
 local Npcs = {}
 local RGB = Color3.fromRGB
@@ -45,8 +56,26 @@ export type Npc = {
 	aimAt: Vector3?,
 	target: Model?,
 	nextPath: number,
-	shoulders: { [string]: { m: Motor6D, c0: CFrame } },
+	shoulders: { [string]: { inst: any, prop: string, c0: CFrame } },
+	joints: { [string]: { inst: any, prop: string, c0: CFrame, joint: any } },
 	prompts: { [string]: ProximityPrompt },
+	-- persona
+	first: string,
+	voice: number,
+	bravery: number, -- 0 coward .. 1 brave
+	chatty: number,
+	unit: string, -- "Staff" | "Guard" | "Police" | "Swat"
+	stance: string, -- stand | crouch | kneel
+	hipBase: number,
+	sayUntil: number,
+	-- hostage
+	unwatched: number,
+	escapeAfter: number,
+	warned: boolean,
+	-- routines
+	busy: string?,
+	life: any,
+	fight: any,
 }
 
 local list: { Npc } = {}
@@ -157,31 +186,146 @@ local function setBubble(n: Npc, meter: number, mark: string?, col: Color3?)
 	(bg:FindFirstChild("Mark") :: TextLabel).Text = mark or "?"
 end
 
-local function say(n: Npc, text: string, col: Color3?)
-	Sfx.popText(n.head.Position + Vector3.new(0, 3.5, 0), text, col or RGB(242, 243, 243), 7)
+-- speech: the clients draw the bubble and play the voice (NpcVoice); mood = normal | scared | scream | angry | whisper
+function Npcs.speak(n: Npc, text: string, mood: string?, force: boolean?)
+	if n.state == "Dead" or not n.model.Parent then
+		return
+	end
+	local t = os.clock()
+	if not force and t < n.sayUntil then
+		return
+	end
+	n.sayUntil = t + 0.8 + #text * 0.05
+	Net.event():FireAllClients("Say", n.model, text, mood or "normal")
+end
+
+local function say(n: Npc, text: string, mood: string?)
+	Npcs.speak(n, text, mood, true)
+end
+
+function Npcs.sfx(name: string, at: Instance, volume: number?, pitch: number?, dist: number?)
+	Sfx.play(name, at, volume, pitch, dist)
+end
+
+local usedVoices: { [number]: boolean } = {}
+local function assignVoice(model: Model, group: string)
+	local pool = (Voices.groups :: any)[group] :: { number }
+	local freeOnes = {}
+	for _, v in pool do
+		if not usedVoices[v] then
+			table.insert(freeOnes, v)
+		end
+	end
+	local v = if #freeOnes > 0 then freeOnes[rng:NextInteger(1, #freeOnes)] else pool[rng:NextInteger(1, #pool)]
+	usedVoices[v] = true
+	model:SetAttribute("Voice", v)
+	model:SetAttribute("VoiceShift", if #freeOnes > 0 then rng:NextNumber(0.97, 1.03) else rng:NextNumber(0.86, 1.14))
+	return v
 end
 
 ------------------------------------------------------------------ poses (shoulder C0 offsets, goofy jitter)
 
 local function captureShoulders(n: Npc)
-	for _, side in { "Right", "Left" } do
-		local arm = n.model:FindFirstChild(side .. "UpperArm")
-		local m = arm and arm:FindFirstChild(side .. "Shoulder") :: Motor6D?
+	local function grab(part: string, joint: string)
+		local p = n.model:FindFirstChild(part)
+		local m = p and p:FindFirstChild(joint)
 		if m then
-			n.shoulders[side] = { m = m, c0 = m.C0 }
+			-- R15 rigs from a HumanoidDescription use AnimationConstraints (C0 is read-only there: the
+			-- offset lives on Attachment0) or classic Motor6Ds
+			local mm = m :: any
+			if m:IsA("Motor6D") then
+				n.joints[joint] = { inst = mm, prop = "C0", c0 = mm.C0, joint = mm }
+			elseif mm.Attachment0 then
+				n.joints[joint] = { inst = mm.Attachment0, prop = "CFrame", c0 = mm.Attachment0.CFrame, joint = mm }
+			end
 		end
+	end
+	for _, side in { "Right", "Left" } do
+		grab(side .. "UpperArm", side .. "Shoulder")
+		grab(side .. "LowerArm", side .. "Elbow")
+		grab(side .. "UpperLeg", side .. "Hip")
+		grab(side .. "LowerLeg", side .. "Knee")
+		local sh = n.joints[side .. "Shoulder"]
+		if sh then
+			n.shoulders[side] = sh
+		end
+	end
+	n.hipBase = n.hum.HipHeight
+end
+
+local function rotate(n: Npc, joint: string, rot: CFrame)
+	local j = n.joints[joint]
+	if j then
+		j.inst[j.prop] = j.c0 * rot
+	end
+end
+
+-- a posed NPC stops its idle/walk animation (NPCCommon watches the NoAnim attribute) and its joints'
+-- leftover animation Transform is cleared, so the offsets below read as intended
+local function refreshAnim(n: Npc)
+	local posed = (n.model:GetAttribute("PoseKind") or "none") ~= "none" or n.stance ~= "stand"
+	if n.model:GetAttribute("NoAnim") == posed then
+		return
+	end
+	n.model:SetAttribute("NoAnim", posed)
+	if posed then
+		task.delay(0.2, function()
+			if n.model:GetAttribute("NoAnim") then
+				for _, j in n.joints do
+					pcall(function()
+						j.joint.Transform = CFrame.identity
+					end)
+				end
+			end
+		end)
 	end
 end
 
 local function pose(n: Npc, kind: string)
-	for side, s in n.shoulders do
+	n.model:SetAttribute("PoseKind", kind)
+	refreshAnim(n)
+	for _, joint in { "RightShoulder", "LeftShoulder", "RightElbow", "LeftElbow" } do
+		rotate(n, joint, CFrame.identity)
+	end
+	for _, side in { "Right", "Left" } do
 		local sign = if side == "Right" then 1 else -1
 		if kind == "up" then
-			s.m.C0 = s.c0 * CFrame.Angles(math.rad(165), 0, math.rad(-12 * sign))
+			rotate(n, side .. "Shoulder", CFrame.Angles(math.rad(165), 0, math.rad(-12 * sign)))
 		elseif kind == "tied" then
-			s.m.C0 = s.c0 * CFrame.Angles(math.rad(-35), 0, math.rad(20 * sign))
-		else
-			s.m.C0 = s.c0
+			rotate(n, side .. "Shoulder", CFrame.Angles(math.rad(-35), 0, math.rad(20 * sign)))
+		elseif kind == "talk" and side == "Right" then
+			rotate(n, "RightShoulder", CFrame.Angles(math.rad(50), 0, math.rad(-8)))
+			rotate(n, "RightElbow", CFrame.Angles(math.rad(60), 0, 0))
+		elseif kind == "phone" and side == "Right" then
+			rotate(n, "RightShoulder", CFrame.Angles(math.rad(40), 0, math.rad(-10)))
+			rotate(n, "RightElbow", CFrame.Angles(math.rad(115), 0, 0))
+		end
+	end
+end
+Npcs.pose = pose
+
+-- stance: stand | crouch (behind a counter) | kneel (hostage). Lowers the hips and bends the legs.
+local STANCES = {
+	stand = { drop = 0, hip = 0, knee = 0 },
+	crouch = { drop = 0.95, hip = math.rad(75), knee = math.rad(-120) },
+	kneel = { drop = 1.15, hip = 0, knee = math.rad(-90) },
+}
+function Npcs.setStance(n: Npc, name: string)
+	if n.stance == name or n.state == "Dead" then
+		return
+	end
+	n.stance = name
+	refreshAnim(n)
+	local s = STANCES[name]
+	local info = TweenInfo.new(0.25, Enum.EasingStyle.Quad)
+	TweenService:Create(n.hum, info, { HipHeight = n.hipBase - s.drop }):Play()
+	for _, side in { "Left", "Right" } do
+		local hip, knee = n.joints[side .. "Hip"], n.joints[side .. "Knee"]
+		if hip then
+			TweenService:Create(hip.inst, info, { [hip.prop] = hip.c0 * CFrame.Angles(s.hip, 0, 0) }):Play()
+		end
+		if knee then
+			TweenService:Create(knee.inst, info, { [knee.prop] = knee.c0 * CFrame.Angles(s.knee, 0, 0) }):Play()
 		end
 	end
 end
@@ -203,8 +347,9 @@ local function eyeParams(): RaycastParams
 	return p
 end
 
-local function arm(n: Npc)
-	local src = StarterPack:FindFirstChild("M4A1")
+local function arm(n: Npc, gun: string?)
+	local tools = ServerStorage:FindFirstChild("HeistTools")
+	local src = (if gun == "Pistol" and tools then tools:FindFirstChild("Pistol") else nil) or StarterPack:FindFirstChild("M4A1")
 	local torso = n.model:FindFirstChild("UpperTorso") :: BasePart?
 	if not src or not torso then
 		return
@@ -315,6 +460,10 @@ local function fire(n: Npc, aimAt: Vector3, damage: number, spreadDeg: number)
 	end
 	Shot:FireAllClients(tool, "Fire", hitPos, if hit then hit.Normal else -dir, hitChar)
 end
+Npcs.fire = fire
+Npcs.spotCrew = spotCrew
+Npcs.eyeParams = eyeParams
+Npcs.folder = NPCCommon.folder
 
 ------------------------------------------------------------------ spawning
 
@@ -348,7 +497,11 @@ local function new(role: string, name: string, cf: CFrame, desc: HumanoidDescrip
 		model = model, hum = hum, root = root, head = model:FindFirstChild("Head") :: BasePart,
 		role = role, state = "Idle", meter = 0, handsUntil = 0, hasCard = role == "Manager",
 		bubble = nil, gun = nil, weld = nil, torso = nil, aimAt = nil, target = nil, nextPath = 0,
-		shoulders = {}, prompts = {},
+		shoulders = {}, joints = {}, prompts = {},
+		first = name, voice = 0, bravery = rng:NextNumber(0.05, 0.95), chatty = rng:NextNumber(0.3, 1),
+		unit = if role == "Guard" then "Guard" elseif role == "Police" then "Police" else "Staff",
+		stance = "stand", hipBase = hum.HipHeight, sayUntil = 0,
+		unwatched = 0, escapeAfter = 10, warned = false, busy = nil, life = { chatAt = 0 }, fight = nil,
 	}
 	model:SetAttribute("Role", role)
 	NPCCommon.animate(hum, root)
@@ -362,7 +515,11 @@ local function new(role: string, name: string, cf: CFrame, desc: HumanoidDescrip
 		model:SetAttribute("HasCard", true)
 	end
 	hum.Died:Connect(function()
+		local wasPos = root.Position
 		n.state = "Dead"
+		if Life and (role == "Teller" or role == "Manager" or role == "Customer" or role == "Guard") then
+			Life.witness("death", n, wasPos)
+		end
 		for _, pp in n.prompts do
 			pp.Enabled = false
 		end
@@ -398,20 +555,32 @@ local function markers(role: string): { BasePart }
 end
 Npcs.markers = markers
 
+local function person(role: string, title: string, cf: CFrame, shirt: Color3, pants: Color3, group: string, female: boolean): Npc?
+	local first = (if female then Lines.firstF else Lines.firstM)[rng:NextInteger(1, 12)]
+	local n = new(role, first .. " (" .. title .. ")", cf, describe(shirt, pants))
+	if n then
+		n.first = first
+		n.voice = assignVoice(n.model, group)
+	end
+	return n
+end
+
 -- the bank's people for a scouting trip ("Scout") or a heist ("Heist")
 function Npcs.spawnBank(mode: string)
 	Npcs.clear()
 	Npcs.mode = mode
-	for i, m in markers("Teller") do
-		local n = new("Teller", "Guichetier " .. i, m.CFrame, describe(RGB(242, 243, 243), RGB(40, 40, 46)))
+	for _, m in markers("Teller") do
+		local female = rng:NextNumber() < 0.7
+		local n = person("Teller", if female then "guichetière" else "guichetier", m.CFrame, RGB(242, 243, 243), RGB(40, 40, 46), if female then "CustomerF" else "CustomerM", female)
 		if n then
 			n.model:SetAttribute("Home", m.CFrame)
 		end
 	end
 	local mgr = markers("Manager")[1]
 	if mgr then
-		local n = new("Manager", "M. Noobla (directeur)", mgr.CFrame, describe(RGB(36, 44, 80), RGB(36, 44, 80)))
+		local n = person("Manager", "directeur", mgr.CFrame, RGB(36, 44, 80), RGB(36, 44, 80), "Manager", false)
 		if n then
+			n.model.Name = "M. " .. n.first .. " Noobla (directeur)"
 			n.model:SetAttribute("Home", mgr.CFrame)
 			torsoLabel(n.model, "DIRECTEUR", RGB(230, 180, 40))
 			-- gold card clipped to the belt
@@ -434,51 +603,91 @@ function Npcs.spawnBank(mode: string)
 			end
 		end
 	end
-	for i, m in markers("Customer") do
+	for _, m in markers("Customer") do
+		local female = rng:NextNumber() < 0.5
 		local shirt = Color3.fromHSV(rng:NextNumber(), 0.55, 0.85)
-		new("Customer", "Client " .. i, m.CFrame, describe(shirt, RGB(50, 70, 120)))
+		person("Customer", if female then "cliente" else "client", m.CFrame, shirt, RGB(50, 70, 120), if female then "CustomerF" else "CustomerM", female)
 	end
-	for i, m in markers("Guard") do
-		local n = new("Guard", "Vigile " .. i, m.CFrame, describe(RGB(28, 38, 66), RGB(22, 22, 26)))
+	for _, m in markers("Guard") do
+		local n = person("Guard", "vigile", m.CFrame, RGB(28, 38, 66), RGB(22, 22, 26), "Guard", false)
 		if n then
 			torsoLabel(n.model, "SECURITE", RGB(242, 243, 243))
 			n.model:SetAttribute("Home", m.CFrame)
-			arm(n)
+			arm(n, "Pistol")
 		end
+	end
+	if Life then
+		task.defer(Life.start)
 	end
 end
 
--- a police squad of `count` officers at the front sidewalk
-function Npcs.spawnPolice(count: number)
+-- a police squad of `count` officers at the front sidewalk: unit "Police" (pistols) or "Swat" (M4s, armoured)
+function Npcs.spawnPolice(count: number, unit: string?)
 	local stage = markers("PoliceStage")[1]
 	if not stage then
 		return
 	end
-	for i = 1, count do
-		local cf = stage.CFrame * CFrame.new((i - count / 2) * 3, 0, rng:NextNumber(-2, 2))
-		local n = new("Police", "Police", cf, describe(RGB(20, 40, 110), RGB(20, 24, 40), false))
-		if n then
-			torsoLabel(n.model, "POLICE", RGB(242, 243, 243))
-			n.state = "Hostile"
-			n.hum.WalkSpeed = 10
-			arm(n)
-			-- police cap
-			local head = n.head
-			local cap = Instance.new("Part")
-			cap.Name = "Cap"
-			cap.Size = Vector3.new(1.3, 0.45, 1.4)
-			cap.Color = RGB(20, 30, 70)
-			cap.TopSurface = Enum.SurfaceType.Studs
-			cap.CanCollide = false
-			cap.Massless = true
-			cap.CFrame = head.CFrame * CFrame.new(0, head.Size.Y / 2 + 0.1, -0.1)
-			local w = Instance.new("WeldConstraint")
-			w.Part0 = head
-			w.Part1 = cap
-			w.Parent = cap
-			cap.Parent = n.model
+	local kind = unit or "Police"
+	local swat = kind == "Swat"
+	task.spawn(function()
+		for i = 1, count do
+			local cf = stage.CFrame * CFrame.new((i - count / 2) * 3, 0, rng:NextNumber(-2, 2) + (if swat then 5 else 0))
+			local first = Lines.firstM[rng:NextInteger(1, #Lines.firstM)]
+			local shirt = if swat then RGB(22, 24, 30) else RGB(20, 40, 110)
+			local pants = if swat then RGB(18, 18, 22) else RGB(20, 24, 40)
+			local n = new("Police", (if swat then "SWAT " else "Agent ") .. first, cf, describe(shirt, pants, false))
+			if n then
+				n.first = first
+				n.unit = kind
+				n.model:SetAttribute("Unit", kind)
+				n.voice = assignVoice(n.model, if swat then "Swat" else "Police")
+				torsoLabel(n.model, if swat then "SWAT" else "POLICE", RGB(242, 243, 243))
+				n.state = "Hostile"
+				n.hum.WalkSpeed = 12
+				if swat then
+					n.hum.MaxHealth = 160
+					n.hum.Health = 160
+				end
+				arm(n, if swat then "M4A1" else "Pistol")
+				-- headgear: a police cap, or a black SWAT helmet with a visor
+				local head = n.head
+				local cap = Instance.new("Part")
+				cap.Name = if swat then "Helmet" else "Cap"
+				cap.Size = if swat then Vector3.new(1.45, 0.8, 1.5) else Vector3.new(1.3, 0.45, 1.4)
+				cap.Color = if swat then RGB(26, 28, 34) else RGB(20, 30, 70)
+				cap.Material = if swat then Enum.Material.Metal else Enum.Material.Plastic
+				cap.TopSurface = Enum.SurfaceType.Smooth
+				cap.CanCollide = false
+				cap.Massless = true
+				cap.CFrame = head.CFrame * CFrame.new(0, head.Size.Y / 2 + (if swat then -0.05 else 0.1), -0.1)
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = head
+				w.Part1 = cap
+				w.Parent = cap
+				cap.Parent = n.model
+				if swat then
+					local visor = Instance.new("Part")
+					visor.Name = "Visor"
+					visor.Size = Vector3.new(1.25, 0.35, 0.1)
+					visor.Color = RGB(60, 90, 110)
+					visor.Material = Enum.Material.Glass
+					visor.CanCollide = false
+					visor.Massless = true
+					visor.CFrame = head.CFrame * CFrame.new(0, 0.1, -head.Size.Z / 2 - 0.02)
+					local vw = Instance.new("WeldConstraint")
+					vw.Part0 = head
+					vw.Part1 = visor
+					vw.Parent = visor
+					visor.Parent = n.model
+				end
+				if i == 1 then
+					local pool = (Lines.combat :: any)[if swat then "swat" else "police"] :: { string }
+					Npcs.speak(n, Lines.pick(pool), "normal", true)
+				end
+			end
+			task.wait(0.35)
 		end
-	end
+	end)
 end
 
 function Npcs.clear()
@@ -488,6 +697,13 @@ function Npcs.clear()
 		end
 	end
 	table.clear(list)
+	table.clear(usedVoices)
+	if Life then
+		Life.reset()
+	end
+	if Combat then
+		Combat.reset()
+	end
 	local card = workspace:FindFirstChild("DroppedCard", true)
 	if card then
 		card:Destroy()
@@ -542,8 +758,16 @@ end
 
 ------------------------------------------------------------------ reactions
 
+local function cardPrompt(n: Npc)
+	if n.prompts.CardPrompt and n.hasCard then
+		n.prompts.CardPrompt.ActionText = "Prendre la carte Nv.5"
+		n.prompts.CardPrompt.HoldDuration = 1
+		n.prompts.CardPrompt.Enabled = true
+	end
+end
+
 local function handsUp(n: Npc, by: Player)
-	if n.state == "Tied" or n.state == "Dead" or n.role == "Guard" or n.role == "Police" then
+	if n.state == "Tied" or n.state == "Dead" or n.state == "Down" or n.role == "Guard" or n.role == "Police" then
 		return
 	end
 	local first = n.state ~= "HandsUp"
@@ -554,20 +778,166 @@ local function handsUp(n: Npc, by: Player)
 	pose(n, "up")
 	setBubble(n, 1, "!", RGB(120, 200, 255))
 	if first then
-		say(n, if n.role == "Customer" then "PITIE !" else "NE TIREZ PAS !", RGB(120, 200, 255))
+		say(n, Lines.react_("handsUp", n.role), "scared")
 		Sfx.play("boing", n.head, 0.5, 1.4)
 	end
 	n.prompts.TiePrompt.Enabled = true
-	if n.prompts.CardPrompt and n.hasCard then
-		n.prompts.CardPrompt.ActionText = "Prendre la carte Nv.5"
-		n.prompts.CardPrompt.HoldDuration = 1
-		n.prompts.CardPrompt.Enabled = true
-	end
+	cardPrompt(n)
 	local _ = by
 end
 
+-- runs for the exit and leaves the bank
+local function flee(n: Npc, speed: number)
+	n.state = "Flee"
+	n.busy = nil
+	n.hum.WalkSpeed = speed
+	setBubble(n, 1, "!", RGB(255, 80, 80))
+	local start = markers("Start")[1]
+	local exit = if start then start.Position else n.root.Position + Vector3.new(0, 0, -60)
+	task.spawn(function()
+		local function abort(): boolean
+			return n.state ~= "Flee" or not n.model.Parent
+		end
+		local ok = Nav.walk(n.hum, n.root, exit, { speed = speed, abort = abort, arrive = 6, timeout = 40 })
+		if not ok and not abort() then
+			-- no path: run straight at it
+			n.hum:MoveTo(exit)
+			local t0 = os.clock()
+			while not abort() and os.clock() - t0 < 6 and (n.root.Position - exit).Magnitude > 6 do
+				task.wait(0.2)
+			end
+		end
+		if not abort() then
+			n.model:Destroy()
+		end
+	end)
+end
+
+local function panic(n: Npc)
+	if n.state == "Flee" or n.state == "Tied" or n.state == "Dead" then
+		return
+	end
+	say(n, Lines.react_("panic", n.role), "scream")
+	if Life then
+		Life.witness("flee", n, n.root.Position)
+	end
+	pose(n, "none")
+	Npcs.setStance(n, "stand")
+	flee(n, 14)
+end
+
+-- on their knees, hands up: a hostage. `auto` = they dropped by themselves out of fear.
+local function down(n: Npc, by: Player?, auto: boolean?)
+	if n.state == "Tied" or n.state == "Dead" or n.role == "Guard" or n.role == "Police" then
+		return
+	end
+	local first = n.state ~= "Down"
+	n.state = "Down"
+	n.busy = nil
+	n.unwatched = 0
+	n.warned = false
+	n.escapeAfter = rng:NextNumber(8, 13) * (1.25 - n.bravery * 0.5) * (if auto then 1.7 else 1)
+	n.meter = 0
+	n.hum:MoveTo(n.root.Position)
+	n.hum.WalkSpeed = 0
+	pose(n, "up")
+	Npcs.setStance(n, "kneel")
+	n.prompts.TiePrompt.Enabled = true
+	cardPrompt(n)
+	setBubble(n, 0)
+	if first then
+		say(n, Lines.react_("down", n.role), "scared")
+		Sfx.play("boing", n.head, 0.4, 1.2)
+		if not auto and Life then
+			Life.witness("hostage", n, n.root.Position)
+		end
+	end
+	local _ = by
+end
+Npcs.down = down
+
+-- a hostage the crew has been ignoring gets up and runs; staff shout for help (alarm)
+local function escapeHostage(n: Npc)
+	if n.state ~= "Down" then
+		return
+	end
+	pose(n, "none")
+	Npcs.setStance(n, "stand")
+	for _, pp in n.prompts do
+		pp.Enabled = false
+	end
+	setBubble(n, 0)
+	local staff = n.role ~= "Customer"
+	say(n, Lines.react_(if staff then "escapeStaff" else "escapeCustomer", n.role), "scream")
+	if staff and Npcs.mode == "Heist" then
+		Npcs.onAlarm("otage échappé", n.root.Position)
+	end
+	if Life then
+		Life.witness("flee", n, n.root.Position)
+	end
+	flee(n, 14)
+end
+
+-- is a crew member watching this NPC (in front of them, in sight, or very close)?
+local function watchedBy(n: Npc): boolean
+	local params = eyeParams()
+	for _, pl in Players:GetPlayers() do
+		if Npcs.isCrew(pl) then
+			local char = pl.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local head = char and char:FindFirstChild("Head") :: BasePart?
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if char and root and head and hum and hum.Health > 0 then
+				local to = n.root.Position - root.Position
+				local d = to.Magnitude
+				if d < 45 then
+					local flatTo = Vector3.new(to.X, 0, to.Z)
+					local look = root.CFrame.LookVector
+					local facing = d < 9 or (flatTo.Magnitude > 0.1 and Vector3.new(look.X, 0, look.Z).Unit:Dot(flatTo.Unit) > 0.25)
+					if facing then
+						local hit = workspace:Raycast(head.Position, n.head.Position - head.Position, params)
+						if not hit or hit.Instance:IsDescendantOf(char) then
+							return true
+						end
+					end
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function hostageTick(n: Npc, dt: number)
+	if watchedBy(n) then
+		n.unwatched = math.max(0, n.unwatched - dt * 2.5)
+	else
+		n.unwatched += dt
+	end
+	local p = n.unwatched / n.escapeAfter
+	setBubble(n, if p > 0.06 then p else 0, ">>", RGB(255, 150, 40))
+	if p > 0.6 and not n.warned then
+		n.warned = true
+		say(n, Lines.react_("warnEscape", n.role), "whisper")
+	end
+	if p >= 1 then
+		escapeHostage(n)
+	end
+end
+
+-- a frightened civilian: runs or drops to the floor depending on their nerve
+function Npcs.scare(n: Npc, strong: boolean)
+	if n.state == "Tied" or n.state == "Dead" or n.state == "Down" or n.state == "Flee" or n.role == "Guard" or n.role == "Police" then
+		return
+	end
+	if n.role == "Customer" and n.bravery < (if strong then 0.55 else 0.4) then
+		panic(n)
+	else
+		down(n, nil, true)
+	end
+end
+
 local function tie(n: Npc, by: Player)
-	if n.state ~= "HandsUp" then
+	if n.state ~= "HandsUp" and n.state ~= "Down" then
 		return
 	end
 	if not Npcs.zipTie(by) then
@@ -576,56 +946,66 @@ local function tie(n: Npc, by: Player)
 	n.state = "Tied"
 	n.prompts.TiePrompt.Enabled = false
 	pose(n, "tied")
-	n.root.Anchored = true
-	TweenService:Create(n.root, TweenInfo.new(0.35, Enum.EasingStyle.Bounce), { CFrame = n.root.CFrame * CFrame.new(0, -1.6, 0) }):Play()
+	Npcs.setStance(n, "kneel")
+	n.hum.WalkSpeed = 0
 	setBubble(n, 1, "Z", RGB(160, 160, 165))
-	say(n, "MMMPH !", RGB(220, 220, 220))
+	say(n, Lines.react_("tied", n.role), "scared")
 	Sfx.play("clank", n.root, 0.6, 1.3)
-	if n.prompts.CardPrompt and n.hasCard then
-		n.prompts.CardPrompt.ActionText = "Prendre la carte Nv.5"
-		n.prompts.CardPrompt.HoldDuration = 1
-		n.prompts.CardPrompt.Enabled = true
-	end
-end
-
-local function panic(n: Npc)
-	if n.state == "Flee" or n.state == "Tied" or n.state == "Dead" then
-		return
-	end
-	n.state = "Flee"
-	say(n, "AAAAH !", RGB(255, 120, 120))
-	setBubble(n, 1, "!", RGB(255, 80, 80))
-	local start = markers("Start")[1]
-	local exit = if start then start.Position else n.root.Position + Vector3.new(0, 0, -60)
-	n.hum.WalkSpeed = 14
-	task.spawn(function()
-		local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
-		local ok = pcall(function()
-			path:ComputeAsync(n.root.Position, exit)
-		end)
-		if ok and path.Status == Enum.PathStatus.Success then
-			for _, wp in path:GetWaypoints() do
-				if n.state ~= "Flee" then
-					return
-				end
-				n.hum:MoveTo(wp.Position)
-				n.hum.MoveToFinished:Wait()
-			end
-		end
-		if n.state == "Flee" and n.model.Parent then
-			n.model:Destroy()
-		end
-	end)
+	cardPrompt(n)
 end
 
 local function raise(n: Npc, why: string)
 	if n.role == "Customer" then
-		panic(n)
+		Npcs.scare(n, false)
 		return
 	end
 	setBubble(n, 1, "!", RGB(255, 60, 60))
-	say(n, if n.role == "Guard" then "HALTE !" else "ALARME !", RGB(255, 90, 90))
+	say(n, if n.role == "Guard" then "HALTE !" else Lines.react_("alarmStaff", n.role), "angry")
 	Npcs.onAlarm(why, n.root.Position)
+end
+
+-- F with a gun out: everybody in front of you (staff and customers) drops to their knees
+local shoutAt: { [Player]: number } = {}
+function Npcs.shout(pl: Player, look: Vector3): (boolean, string?)
+	if not Npcs.isCrew(pl) then
+		return false, nil
+	end
+	local char = pl.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local head = char and char:FindFirstChild("Head") :: BasePart?
+	local held = char and char:FindFirstChildOfClass("Tool")
+	if not char or not root or not head then
+		return false, nil
+	end
+	local id = if held then held:GetAttribute("ItemId") else nil
+	if not held or not held:GetAttribute("HeistGear") or (id ~= "pistol" and id ~= "rifle" and id ~= "sniper") then
+		return false, "Sors une arme pour crier « À terre ! »"
+	end
+	if (shoutAt[pl] or 0) > os.clock() - 1.5 then
+		return false, nil
+	end
+	shoutAt[pl] = os.clock()
+	local dir = Vector3.new(look.X, 0, look.Z)
+	if dir.Magnitude < 0.1 then
+		dir = root.CFrame.LookVector * Vector3.new(1, 0, 1)
+	end
+	dir = dir.Unit
+	Net.event():FireAllClients("Say", char, Lines.pick({ "À TERRE ! TOUT LE MONDE À TERRE !", "TOUS À TERRE !", "À TERRE ! MAINS VISIBLES !", "PERSONNE NE BOUGE !" }), "angry")
+	local params = eyeParams()
+	for _, n in list do
+		if n.state ~= "Dead" and n.state ~= "Tied" and n.state ~= "Down" and n.role ~= "Guard" and n.role ~= "Police" and n.model.Parent then
+			local to = n.root.Position - root.Position
+			local flatTo = Vector3.new(to.X, 0, to.Z)
+			local d = flatTo.Magnitude
+			if d < 34 and (d < 4 or flatTo.Unit:Dot(dir) > 0.55) then
+				local hit = workspace:Raycast(head.Position, n.head.Position - head.Position, params)
+				if not hit or hit.Instance:IsDescendantOf(char) then
+					down(n, pl)
+				end
+			end
+		end
+	end
+	return true, nil
 end
 
 -- prompts on the NPCs
@@ -654,7 +1034,7 @@ local function wirePrompts()
 						local behind = toPlayer.Magnitude > 0.1 and n.root.CFrame.LookVector:Dot(toPlayer.Unit) < -0.2
 						if not behind then
 							n.meter = math.max(n.meter, 0.7)
-							say(n, "HE ! VOS MAINS !", RGB(255, 200, 80))
+							say(n, Lines.react_("cardGrab", n.role), "angry")
 							return
 						end
 					end
@@ -749,6 +1129,10 @@ local function think(n: Npc, dt: number)
 		return
 	end
 	local now = os.clock()
+	if n.state == "Down" then
+		hostageTick(n, dt)
+		return
+	end
 	-- scared civilians
 	if n.role ~= "Guard" and n.role ~= "Police" then
 		for _, pl in Players:GetPlayers() do
@@ -760,7 +1144,7 @@ local function think(n: Npc, dt: number)
 			-- goofy shaking
 			for side, s in n.shoulders do
 				local sign = if side == "Right" then 1 else -1
-				s.m.C0 = s.c0 * CFrame.Angles(math.rad(165 + rng:NextNumber(-8, 8)), 0, math.rad(-12 * sign + rng:NextNumber(-6, 6)))
+				s.inst[s.prop] = s.c0 * CFrame.Angles(math.rad(165 + rng:NextNumber(-8, 8)), 0, math.rad(-12 * sign + rng:NextNumber(-6, 6)))
 			end
 			if now > n.handsUntil then
 				n.state = "Idle"
@@ -818,7 +1202,7 @@ local function think(n: Npc, dt: number)
 			n.meter = 0.3
 			if (shoo[who] or 0) < now then
 				shoo[who] = now + 6
-				say(n, "PERSONNEL UNIQUEMENT !", RGB(255, 200, 80))
+				say(n, Lines.react_("notice", n.role), "angry")
 				Net.event():FireClient(who, "Toast", "« Vous n'avez rien à faire ici ! » Reste discret pendant le repérage.", "warn")
 				local start = markers("Start")[1]
 				local char = who.Character
@@ -839,70 +1223,6 @@ local function think(n: Npc, dt: number)
 		return
 	end
 	setBubble(n, n.meter)
-end
-
--- guards and police in a fight
-local function fight(n: Npc)
-	local now = os.clock()
-	local point, char = spotCrew(n.head.Position, 260)
-	if point then
-		if not n.aimAt then
-			n.nextPath = now + rng:NextNumber(0.6, 1.1) -- reaction time before the first burst
-		end
-		n.aimAt = point
-		n.target = char
-		n.hum.AutoRotate = false
-		n.hum:MoveTo(n.root.Position)
-		if now >= n.nextPath then
-			for _ = 1, rng:NextInteger(2, 4) do
-				if n.hum.Health <= 0 then
-					break
-				end
-				fire(n, point, if n.role == "Police" then 6 else 5, 4.5)
-				task.wait(0.13)
-			end
-			n.nextPath = os.clock() + rng:NextNumber(1.2, 2.2)
-		end
-	else
-		n.aimAt = nil
-		n.hum.AutoRotate = true
-		-- walk toward the nearest crew member
-		if now >= n.nextPath then
-			n.nextPath = now + 1.5
-			local best: Vector3? = nil
-			local bd = 400
-			for _, pl in Players:GetPlayers() do
-				local r = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-				if r and Npcs.isCrew(pl) and (r.Position - n.root.Position).Magnitude < bd then
-					best, bd = r.Position, (r.Position - n.root.Position).Magnitude
-				end
-			end
-			if best then
-				local goal = best
-				task.spawn(function()
-					local path = PathfindingService:CreatePath({ AgentRadius = 1.8, AgentHeight = 5, AgentCanJump = true })
-					local ok = pcall(function()
-						path:ComputeAsync(n.root.Position, goal)
-					end)
-					if ok and path.Status == Enum.PathStatus.Success then
-						local wps = path:GetWaypoints()
-						for i = 2, math.min(#wps, 6) do
-							if n.aimAt or n.hum.Health <= 0 then
-								return
-							end
-							n.hum:MoveTo(wps[i].Position)
-							local reached = n.hum.MoveToFinished:Wait()
-							if not reached then
-								return
-							end
-						end
-					else
-						n.hum:MoveTo(goal)
-					end
-				end)
-			end
-		end
-	end
 end
 
 -- smooth gun pose for armed NPCs
@@ -931,7 +1251,7 @@ local function gunPose(n: Npc, dt: number)
 	end
 end
 
--- bank alarm: staff cower, guards fight, customers run
+-- bank alarm: guards fight, customers run or drop to the floor, staff press the button then cower
 function Npcs.alarm()
 	for _, n in list do
 		if n.state ~= "Dead" and n.state ~= "Tied" then
@@ -939,10 +1259,17 @@ function Npcs.alarm()
 				n.state = "Hostile"
 				setBubble(n, 1, "!", RGB(255, 60, 60))
 			elseif n.role == "Customer" then
-				panic(n)
-			elseif n.state ~= "HandsUp" then
+				Npcs.scare(n, true)
+			elseif n.state ~= "HandsUp" and n.state ~= "Down" then
 				n.meter = 0
 				setBubble(n, 1, "!", RGB(255, 60, 60))
+				local who = n
+				task.delay(rng:NextNumber(0.4, 1.6), function()
+					if who.state == "Idle" or who.state == "HandsUp" then
+						say(who, Lines.react_("alarmStaff", who.role), "scream")
+						down(who, nil, true)
+					end
+				end)
 			end
 		end
 	end
@@ -954,7 +1281,7 @@ local function managerRoutine(n: Npc)
 	local home = n.model:GetAttribute("Home")
 	local i = 0
 	while n.model.Parent and n.state ~= "Dead" do
-		if n.state == "Idle" and Npcs.mode ~= "Off" and n.meter < 0.3 then
+		if n.state == "Idle" and Npcs.mode ~= "Off" and n.meter < 0.3 and n.busy ~= "talk" then
 			i += 1
 			local target = if i % 5 == 0 and typeof(home) == "CFrame" then home.Position else walk[(i - 1) % #walk + 1].Position
 			local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = false })
@@ -963,7 +1290,7 @@ local function managerRoutine(n: Npc)
 			end)
 			if ok and path.Status == Enum.PathStatus.Success then
 				for _, wp in path:GetWaypoints() do
-					if n.state ~= "Idle" or n.meter > 0.3 then
+					if n.state ~= "Idle" or n.meter > 0.3 or n.busy == "talk" then
 						break
 					end
 					n.hum:MoveTo(wp.Position)
@@ -978,12 +1305,19 @@ local function managerRoutine(n: Npc)
 				task.wait(14)
 				n.model:SetAttribute("OnPhone", false)
 			else
-				task.wait(rng:NextNumber(5, 9))
+				if Life and n.state == "Idle" then
+						Life.tryChat(n, 18)
+					end
+					task.wait(rng:NextNumber(3, 7))
 			end
 		else
 			task.wait(1)
 		end
 	end
+end
+
+function Npcs.combatInfo(): any
+	return Combat and Combat.stats
 end
 
 function Npcs.init()
@@ -1010,25 +1344,11 @@ function Npcs.init()
 			end
 		end
 	end)
-	-- combat loop (yields inside, so one thread per armed NPC)
-	task.spawn(function()
-		local running: { [Npc]: boolean } = {}
-		while true do
-			for _, n in list do
-				if n.state == "Hostile" and not running[n] and n.hum.Health > 0 then
-					running[n] = true
-					task.spawn(function()
-						while n.state == "Hostile" and n.hum.Health > 0 and n.model.Parent do
-							fight(n)
-							task.wait(0.2)
-						end
-						running[n] = nil
-					end)
-				end
-			end
-			task.wait(0.3)
-		end
-	end)
+	-- ambient life, witnesses, and the tactical combat brains
+	Life = require(script.Parent:WaitForChild("NpcLife"))
+	Combat = require(script.Parent:WaitForChild("NpcCombat"))
+	Life.init(Npcs)
+	Combat.init(Npcs)
 	-- manager routine starts whenever a manager appears
 	task.spawn(function()
 		local started: { [Model]: boolean } = {}

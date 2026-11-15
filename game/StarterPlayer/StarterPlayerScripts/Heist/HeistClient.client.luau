@@ -558,6 +558,19 @@ ContextActionService:BindAction("HeistThrow", function(_, state)
 	return Enum.ContextActionResult.Pass
 end, false, Enum.KeyCode.G)
 
+-- F with a gun out: shout "à terre !" so the civilians in front of you kneel down (hostages)
+local lastShoutToast = 0
+ContextActionService:BindAction("HeistShout", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		local ok, msg = shared.request("Shout", workspace.CurrentCamera.CFrame.LookVector)
+		if not ok and msg and os.clock() - lastShoutToast > 3 then
+			lastShoutToast = os.clock()
+			toast(msg, "warn")
+		end
+	end
+	return Enum.ContextActionResult.Pass
+end, false, Enum.KeyCode.F)
+
 -- Studio-only test hooks: open screens from a test script
 if RunService:IsStudio() then
 	player:GetAttributeChangedSignal("TestOpen"):Connect(function()

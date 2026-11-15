@@ -52,6 +52,12 @@ Request.OnServerInvoke = function(player: Player, action: any, a: any, b: any, c
 	elseif action == "Throw" then
 		Run.throw(player, a)
 		return true, nil
+	elseif action == "Shout" then
+		-- F with a gun out: civilians in front of the player drop to their knees (hostages)
+		if typeof(a) ~= "Vector3" then
+			return false, nil
+		end
+		return Npcs.shout(player, a)
 	elseif action == "Abandon" then
 		Run.abandon(player)
 		return true, nil
@@ -91,6 +97,24 @@ Request.OnServerInvoke = function(player: Player, action: any, a: any, b: any, c
 				table.insert(out, n.model.Name .. "=" .. n.state .. string.format("(%.1f)", n.meter))
 			end
 			return true, table.concat(out, ", ")
+		elseif a == "spawnbank" then
+			Npcs.spawnBank(if b == "Heist" then "Heist" else "Scout")
+			return true, nil
+		elseif a == "police" then
+			Npcs.spawnPolice(b or 4, c or "Police")
+			return true, nil
+		elseif a == "alarm" then
+			Npcs.alarm()
+			return true, nil
+		elseif a == "state" then
+			local out = {}
+			for _, n in Npcs.list do
+				table.insert(out, string.format("%s|%s|%s|%.0f,%.0f,%.0f|%s|hp%.0f|stance %s|busy %s|%s", n.model.Name, n.role, n.state, n.root.Position.X, n.root.Position.Y, n.root.Position.Z, tostring(n.model:GetAttribute("Unit")), n.hum.Health, n.stance, tostring(n.busy), if n.fight then string.format("cover=%s seen=%s ammo=%d", if n.fight.cover then n.fight.cover.stance else "-", tostring(n.fight.seeing), n.fight.ammo) else "-"))
+			end
+			return true, table.concat(out, "\n")
+		elseif a == "combatstats" then
+			local st = Npcs.combatInfo()
+			return true, if st then string.format("bursts=%d blind=%d peeks=%d moves=%d maxExposed=%d", st.bursts, st.blind, st.peeks, st.moves, st.maxExposed) else "-"
 		elseif a == "kill" then
 			for _, n in Npcs.list do
 				if n.role == b then

@@ -40,6 +40,7 @@ local deadCams: { [Instance]: boolean } = {}
 local alarmSound: Sound? = nil
 local sirenSound: Sound? = nil
 local nextWave = 0
+local waveNo = 0 -- 1 = pistol squad, 2+ = SWAT with M4s
 local resultsPending = false
 
 local function now(): number
@@ -261,6 +262,7 @@ local function policeAlert(why: string)
 	S:SetAttribute("PoliceCallAt", 0)
 	S:SetAttribute("PoliceArriveAt", now() + Noobla.policeDelay)
 	nextWave = now() + Noobla.policeDelay
+	waveNo = 0
 	toast(nil, "LA POLICE EST PRÉVENUE (" .. why .. ") : arrivée dans " .. Noobla.policeDelay .. " s !", "bad")
 end
 
@@ -1465,8 +1467,14 @@ local function tick(dt: number)
 	if S:GetAttribute("PoliceAlert") and t >= nextWave then
 		nextWave = t + 35
 		if Npcs.alive("Police") < 10 then
-			Npcs.spawnPolice(4)
-			toast(nil, "LA POLICE DÉBARQUE !", "bad")
+			waveNo += 1
+			if waveNo == 1 then
+				Npcs.spawnPolice(4, "Police")
+				toast(nil, "LA POLICE DÉBARQUE ! (agents armés de pistolets)", "bad")
+			else
+				Npcs.spawnPolice(math.min(2 + waveNo, 5), "Swat")
+				toast(nil, "RENFORTS : LE SWAT ARRIVE ! (fusils M4, gilets lourds)", "bad")
+			end
 			local st = marker("PoliceStage")
 			if st and not sirenSound then
 				sirenSound = Sfx.loop("siren", st, 0.6, 400)

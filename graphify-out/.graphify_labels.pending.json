@@ -1,7 +1,7 @@
 {
   "0": "GunClient.client.luau",
   "1": "Data.luau",
-  "2": "WeaponServer.server.luau",
+  "2": "GunAnim.luau",
   "3": "HeistMapBuilder.luau",
   "4": "Heistbond - Roblox dev workspace",
   "5": "HeavyMovement.client.luau",
@@ -21,5 +21,9 @@
   "19": "BankDoors.server.luau",
   "20": "Items.luau",
   "21": "Noobla.luau",
-  "22": "Driving.client.luau"
+  "22": "Driving.client.luau",
+  "23": "NpcLife.luau",
+  "24": "Data.luau",
+  "25": "spawnOne",
+  "26": "Voices.luau"
 }
