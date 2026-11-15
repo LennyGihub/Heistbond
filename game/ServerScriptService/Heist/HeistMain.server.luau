@@ -91,6 +91,17 @@ Request.OnServerInvoke = function(player: Player, action: any, a: any, b: any, c
 				return true, v.Name
 			end
 			return false, "no vehicle"
+		elseif a == "veh" and type(b) == "string" and typeof(c) == "Vector3" then
+			local m = Run.testVehicle(player, b, c)
+			return m ~= nil, m and m.Name
+		elseif a == "give" and type(b) == "string" then
+			Tools.give(player, b, if type(c) == "number" then c else 1)
+			return true, b
+		elseif a == "nointro" then
+			workspace:SetAttribute("TestNoIntro", b == true)
+			return true, nil
+		elseif a == "phase" then
+			return true, ReplicatedStorage:WaitForChild("HeistState"):GetAttribute("Phase")
 		elseif a == "npcs" then
 			local out = {}
 			for _, n in Npcs.list do

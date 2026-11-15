@@ -214,6 +214,10 @@ end
 local KEYS = { { Enum.KeyCode.W, "W" }, { Enum.KeyCode.A, "A" }, { Enum.KeyCode.S, "S" }, { Enum.KeyCode.D, "D" } }
 local hacking = false
 local function hackGame(token: number, steps: number)
+	local hackAnim = (shared :: any).hackAnim
+	if hackAnim then
+		hackAnim(true)
+	end
 	if hacking then
 		return
 	end
@@ -246,6 +250,10 @@ local function hackGame(token: number, steps: number)
 		done = true
 		info.Text = if ok then "ACCÈS AUTORISÉ !" else "ÉCHEC : LA CLÉ GRILLE !"
 		info.TextColor3 = if ok then C.lime else C.red
+		local ha = (shared :: any).hackAnim
+		if ha then
+			ha(false)
+		end
 		shared.request("HackResult", token, ok)
 		task.delay(1.1, function()
 			B.popOut(p, function()
@@ -376,7 +384,7 @@ end
 local function refresh()
 	local phase = S:GetAttribute("Phase")
 	local inHeist = phase == "Heist" and player:GetAttribute("InHeist") == true
-	bar.Visible = phase ~= "Heist" and player:GetAttribute("Scouting") ~= true
+	bar.Visible = phase ~= "Heist" and phase ~= "Starting" and player:GetAttribute("Scouting") ~= true
 	hud.Visible = inHeist
 	scoutPanel.Visible = player:GetAttribute("Scouting") == true
 	cashLabel.Text = money()
