@@ -69,6 +69,7 @@ local RED = Color3.fromRGB(255, 45, 45)
 local IS_STUDIO = RunService:IsStudio()
 
 local equipped, triggerDown, aiming, reloading = false, false, false, false
+local reloadLift = 0 -- first-person reload raise (0..1)
 local ammo = (tool:GetAttribute("Ammo") :: number?) or cfg.MagSize
 local reserve = (tool:GetAttribute("Reserve") :: number?) or cfg.Reserve
 local lastShot = 0
@@ -419,9 +420,11 @@ reload = function()
 	reloadToken += 1
 	local my = reloadToken
 	ReloadRemote:FireServer()
-	Fx.sound(tool, "Reload")
+	-- the reload sounds (release, mag out, pouch, mag in, slap, charging handle) are played step by step by GunAnim
 	updateHud()
-	GunAnim.startReload(tool, cfg.ReloadTime)
+	local head = player.Character and player.Character:FindFirstChild("Head") :: BasePart?
+	local fp = head ~= nil and (Workspace.CurrentCamera.CFrame.Position - head.Position).Magnitude < 1.5
+	GunAnim.startReload(tool, cfg.ReloadTime, fp)
 	task.delay(cfg.ReloadTime, function()
 		if reloadToken ~= my then
 			return
@@ -431,6 +434,17 @@ reload = function()
 		reserve -= take
 		reloading = false
 		updateHud()
+	end)
+end
+
+-- Studio-only test hook: set the tool attribute TestReload to force a reload (scripted playtests)
+if IS_STUDIO then
+	tool:GetAttributeChangedSignal("TestReload"):Connect(function()
+		if tool:GetAttribute("TestReload") then
+			tool:SetAttribute("TestReload", nil)
+			ammo = math.min(ammo, cfg.MagSize - 3)
+			reload()
+		end
 	end)
 end
 
@@ -810,7 +824,10 @@ local function renderStep(dt: number)
 		local bobCF = CFrame.new(math.sin(bobT) * 0.035 * amp, -math.abs(math.cos(bobT)) * 0.03 * amp + math.sin(now * 1.6) * breathe, 0)
 			* CFrame.Angles(0, 0, math.sin(bobT) * 0.02 * amp)
 		local swayCF = CFrame.Angles(sway.X, sway.Y, sway.Y * 0.6)
-		local lower = GunAnim.isReloading(tool) and CFrame.new(0, -0.12, 0.1) or CFrame.identity
+		-- reloading in first person: the gun comes up toward the middle of the view so the hands, the
+		-- magazine and the charging handle are on screen (GunAnim adds the roll and the jolts)
+		reloadLift += ((GunAnim.isReloading(tool) and 1 or 0) - reloadLift) * math.min(1, dt * 7)
+		local lower = CFrame.new(-0.2 * reloadLift, 0.16 * reloadLift, -0.45 * reloadLift)
 		-- sprinting: gun swings down and across the body, with a bigger, faster bounce
 		local sprintBob = CFrame.new(math.sin(bobT) * 0.05 * sprintAlpha, -math.abs(math.cos(bobT)) * 0.06 * sprintAlpha, 0)
 			* CFrame.Angles(0, 0, math.sin(bobT) * 0.05 * sprintAlpha)

@@ -124,6 +124,7 @@ local function build(kind: string, cf: CFrame): Model
 	seat.MaxSpeed = s.speed
 	seat.Torque = 0
 	seat.HeadsUpDisplay = false
+	seat.Disabled = true -- no driving: the getaway is a cinematic (EscapePrompt)
 	seat.Parent = m
 	weld(chassis, seat)
 	for i = 2, s.seats do
@@ -133,6 +134,7 @@ local function build(kind: string, cf: CFrame): Model
 		ps.CFrame = seat.CFrame * CFrame.new(W / 2, 0, 0)
 		ps.Transparency = 1
 		ps.CanCollide = false
+		ps.Disabled = true
 		ps.Parent = m
 		weld(chassis, ps)
 		local _ = i
@@ -151,6 +153,16 @@ local function build(kind: string, cf: CFrame): Model
 	pp.RequiresLineOfSight = false
 	pp.Parent = cargo
 	-- physics movers (targets set by the driver's client)
+	-- the getaway: everyone close by gets in and the vehicle races to the hideout (Run.escape)
+	local esc = Instance.new("ProximityPrompt")
+	esc.Name = "EscapePrompt"
+	esc.ActionText = "S'enfuir !"
+	esc.ObjectText = s.name
+	esc.HoldDuration = 1.2
+	esc.MaxActivationDistance = 11
+	esc.RequiresLineOfSight = false
+	esc.UIOffset = Vector2.new(0, 60)
+	esc.Parent = seat
 	local att = Instance.new("Attachment")
 	att.Name = "Drive"
 	att.Parent = chassis

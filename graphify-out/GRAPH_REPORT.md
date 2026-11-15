@@ -1,17 +1,17 @@
 # Graph Report - Heistbond  (2026-11-15)
 
 ## Corpus Check
-- 44 files · ~85,715 words
+- 56 files · ~111,092 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
 ## Summary
-- 364 nodes · 737 edges · 27 communities (16 shown, 11 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 76 edges (avg confidence: 0.85)
+- 448 nodes · 906 edges · 31 communities (19 shown, 12 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 96 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a86a8445`
+- Built from commit: `e3f4207b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -32,49 +32,52 @@
 - GuardService.server.luau
 - Blocky.luau
 - NpcLife.luau
-- Data.luau
+- Actions.cine
 - spawnOne
+- CineRides.luau
+- Cine.luau
+- NpcPoses.luau
 
 ## God Nodes (most connected - your core abstractions)
 1. `P()` - 22 edges
 2. `customerLoop()` - 15 edges
 3. `startDrill()` - 14 edges
-4. `explode()` - 13 edges
-5. `guardLoop()` - 11 edges
-6. `fireOnce()` - 11 edges
+4. `C.escape()` - 13 edges
+5. `explode()` - 13 edges
+6. `C.intro()` - 11 edges
 7. `fireOnce()` - 11 edges
-8. `free()` - 10 edges
-9. `B.new()` - 10 edges
-10. `folder()` - 10 edges
+8. `fireOnce()` - 11 edges
+9. `guardLoop()` - 11 edges
+10. `GunAnim.step()` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `converse()` --calls--> `Nav.stop()`  [INFERRED]
-  game/ServerScriptService/Heist/NpcLife.luau → game/ServerScriptService/Heist/NpcNav.luau
-- `customerLoop()` --calls--> `Lines.pick()`  [INFERRED]
-  game/ServerScriptService/Heist/NpcLife.luau → game/ServerScriptService/Heist/NpcLines.luau
-- `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `C.escape()` --calls--> `Cine.begin()`  [INFERRED]
+  game/ReplicatedStorage/Heist/CineRides.luau → game/ReplicatedStorage/Heist/Cine.luau
+- `C.intro()` --calls--> `Cine.begin()`  [INFERRED]
+  game/ReplicatedStorage/Heist/CineRides.luau → game/ReplicatedStorage/Heist/Cine.luau
+- `C.escape()` --calls--> `Cine.shot()`  [INFERRED]
+  game/ReplicatedStorage/Heist/CineRides.luau → game/ReplicatedStorage/Heist/Cine.luau
+- `C.intro()` --calls--> `Cine.shot()`  [INFERRED]
+  game/ReplicatedStorage/Heist/CineRides.luau → game/ReplicatedStorage/Heist/Cine.luau
+- `startDrill()` --calls--> `CrewVan.build()`  [INFERRED]
+  game/ServerScriptService/Heist/Run.luau → game/ReplicatedStorage/Heist/CrewVan.luau
 
 ## Import Cycles
 - None detected.
 
-## Communities (27 total, 11 thin omitted)
+## Communities (31 total, 12 thin omitted)
 
 ### Community 0 - "GunClient.client.luau"
-Cohesion: 0.13
-Nodes (23): aimFar(), aimTarget(), bar(), buildHud(), cloneLimb(), corner(), destroyViewArms(), fireOnce() (+15 more)
+Cohesion: 0.10
+Nodes (30): emitterFor(), folder(), Fx.impact(), Fx.muzzle(), Fx.sound(), Fx.tracer(), playSound(), aimFar() (+22 more)
 
 ### Community 1 - "Data.luau"
-Cohesion: 0.12
-Nodes (15): Data.count(), buildTemplates(), makeWeapon(), part(), simple(), Tools.equip(), Tools.find(), Tools.give() (+7 more)
+Cohesion: 0.07
+Nodes (25): Data.add(), Data.addCash(), Data.count(), Data.init(), Data.learn(), Data.push(), Data.save(), Data.take() (+17 more)
 
 ### Community 2 - "GunAnim.luau"
-Cohesion: 0.40
-Nodes (10): GunAnim.isReloading(), GunAnim.remember(), GunAnim.startReload(), GunAnim.step(), GunAnim.stop(), parts(), restOf(), setMagHidden() (+2 more)
+Cohesion: 0.25
+Nodes (16): dropMag(), ejectCasing(), GunAnim.isReloading(), GunAnim.remember(), GunAnim.startReload(), GunAnim.step(), GunAnim.stop(), looseFolder() (+8 more)
 
 ### Community 3 - "HeistMapBuilder.luau"
 Cohesion: 0.14
@@ -97,8 +100,8 @@ Cohesion: 0.33
 Nodes (6): CoverPose.apply(), CoverPose.isR15(), lerp(), rig(), rotBetween(), solveArm()
 
 ### Community 13 - "Sniper/GunClient.client.luau"
-Cohesion: 0.10
-Nodes (30): emitterFor(), folder(), Fx.impact(), Fx.muzzle(), Fx.sound(), Fx.tracer(), playSound(), aimFar() (+22 more)
+Cohesion: 0.13
+Nodes (23): aimFar(), aimTarget(), bar(), buildHud(), cloneLimb(), corner(), destroyViewArms(), fireOnce() (+15 more)
 
 ### Community 14 - "Run.luau"
 Cohesion: 0.14
@@ -120,31 +123,43 @@ Nodes (24): B.button(), B.click(), B.icon(), B.label(), B.money(), B.new(), B.pa
 Cohesion: 0.13
 Nodes (31): alive(), buildWindows(), calm(), chat(), converse(), customerLoop(), dist(), free() (+23 more)
 
-### Community 24 - "Data.luau"
-Cohesion: 0.16
-Nodes (13): get(), Net.event(), Net.request(), Data.add(), Data.addCash(), Data.init(), Data.learn(), Data.push() (+5 more)
+### Community 24 - "Actions.cine"
+Cohesion: 0.36
+Nodes (7): get(), Net.event(), Net.request(), Actions.act(), Actions.cine(), Actions.run(), lock()
 
 ### Community 25 - "spawnOne"
 Cohesion: 0.31
 Nodes (9): loadTrack(), NPCCommon.animate(), NPCCommon.build(), NPCCommon.groundAt(), NPCCommon.onDeath(), describe(), randomPoint(), spawnOne() (+1 more)
 
+### Community 27 - "CineRides.luau"
+Cohesion: 0.14
+Nodes (26): C.escape(), C.intro(), C.vanLeave(), flash(), loopSound(), makePath(), pathAt(), pathCF() (+18 more)
+
+### Community 28 - "Cine.luau"
+Cohesion: 0.18
+Nodes (16): cam(), Cine.begin(), Cine.safe(), Cine.shot(), controls(), makeGui(), smooth(), step() (+8 more)
+
+### Community 29 - "NpcPoses.luau"
+Cohesion: 0.26
+Nodes (12): arm(), backOut(), head(), legs(), lerpPose(), limb(), noise(), NpcPoses.sample() (+4 more)
+
 ## Knowledge Gaps
-- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `GunPose.cframe()` connect `GuardService.server.luau` to `GunAnim.luau`?**
-  _High betweenness centrality (0.192) - this node is a cross-community bridge._
+  _High betweenness centrality (0.194) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `customerLoop()` (e.g. with `Lines.pick()` and `Lines.solo_()`) actually correct?**
   _`customerLoop()` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **Should `GunClient.client.luau` be split into smaller, more focused modules?**
-  _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.09841269841269841 - nodes in this community are weakly interconnected._
 - **Why does `playReload()` connect `GunAnim.luau` to `GuardService.server.luau`?**
-  _High betweenness centrality (0.107) - this node is a cross-community bridge._
-- **Are the 6 inferred relationships involving `startDrill()` (e.g. with `Sfx.loop()` and `Sfx.play()`) actually correct?**
-  _`startDrill()` has 6 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.114) - this node is a cross-community bridge._
+- **Are the 7 inferred relationships involving `startDrill()` (e.g. with `CrewVan.build()` and `Sfx.loop()`) actually correct?**
+  _`startDrill()` has 7 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Data.luau` be split into smaller, more focused modules?**
-  _Cohesion score 0.12 - nodes in this community are weakly interconnected._
-- **Are the 4 inferred relationships involving `explode()` (e.g. with `Sfx.confetti()` and `Sfx.debris()`) actually correct?**
-  _`explode()` has 4 INFERRED edges - model-reasoned connections that need verification._
+  _Cohesion score 0.0708245243128964 - nodes in this community are weakly interconnected._
+- **Are the 3 inferred relationships involving `C.escape()` (e.g. with `Cine.begin()` and `Cine.shot()`) actually correct?**
+  _`C.escape()` has 3 INFERRED edges - model-reasoned connections that need verification._

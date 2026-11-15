@@ -18,261 +18,333 @@
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/GunAnim.luau": {
-    "mtime": 1794751517.530954,
-    "seen": 1794751529.9936032,
-    "ast_hash": "5279e033e61b0d5efa4f9c21751a256e",
+    "mtime": 1794757687.6445465,
+    "seen": 1794757702.1489682,
+    "ast_hash": "82fe2af459ba847bd7000f0876247e58",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/GunPose.luau": {
-    "mtime": 1794751517.792709,
-    "seen": 1794751529.993605,
+    "mtime": 1794757687.9057589,
+    "seen": 1794757702.1489697,
     "ast_hash": "16591dae1fb0da01636740cdfa922a5c",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/WeaponConfig.luau": {
-    "mtime": 1794751518.0613244,
-    "seen": 1794751529.9936056,
-    "ast_hash": "b3b73738a4ebeabc1c2519d828335c4d",
+    "mtime": 1794757688.1709216,
+    "seen": 1794757702.1489716,
+    "ast_hash": "dedff71181951149231048bdf14d272e",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Weapons/WeaponFx.luau": {
-    "mtime": 1794751518.3253307,
-    "seen": 1794751529.9936066,
+    "mtime": 1794757688.4482508,
+    "seen": 1794757702.148973,
     "ast_hash": "1f5fb0620d4b5e285e97ebb6c262311b",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Weapons/WeaponServer.server.luau": {
-    "mtime": 1794751523.4124074,
-    "seen": 1794751529.9936235,
+    "mtime": 1794757694.326973,
+    "seen": 1794757702.1490033,
     "ast_hash": "f8db17f66868205acbd75c235c7e881c",
     "semantic_hash": ""
   },
   "game/StarterPack/M4A1/GunClient.client.luau": {
-    "mtime": 1794751524.3827605,
-    "seen": 1794751529.9936254,
-    "ast_hash": "40084c12ca66e73bf34f185bea9e8be6",
+    "mtime": 1794757695.2881398,
+    "seen": 1794757702.149006,
+    "ast_hash": "1963d7d8bd0c7f3bb52c763f86801b8f",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/WeaponFxListener.client.luau": {
-    "mtime": 1794751528.026227,
-    "seen": 1794751529.9936364,
-    "ast_hash": "73e7db6ca8bac2a0a93a0f4d7556d75f",
-    "semantic_hash": "73e7db6ca8bac2a0a93a0f4d7556d75f"
+    "mtime": 1794757699.5575266,
+    "seen": 1794757702.1490273,
+    "ast_hash": "3916b03b6de9c8c05cb0801c31a65e2e",
+    "semantic_hash": ""
   },
   "game/_manifest.json": {
-    "mtime": 1794751528.026754,
-    "seen": 1794751529.9936376,
-    "ast_hash": "b24ef7b7cdc05dd94d1165a01e4f3403",
+    "mtime": 1794757699.5579793,
+    "seen": 1794757702.1490285,
+    "ast_hash": "0dc4de66593a590c17bc5f07e6248788",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau": {
-    "mtime": 1794751525.93581,
-    "seen": 1794751529.99363,
-    "ast_hash": "acb31b47b93c34c3045f9faa425dbae7",
+    "mtime": 1794757696.7014174,
+    "seen": 1794757702.1490128,
+    "ast_hash": "8d8a79655c68a2b1c0fab330a810381e",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Cover/CoverPose.luau": {
-    "mtime": 1794751515.6344008,
-    "seen": 1794751529.9935913,
+    "mtime": 1794757683.2963462,
+    "seen": 1794757702.148937,
     "ast_hash": "4562402cc8f3536b83b16db9657464de",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Cover/CoverServer.server.luau": {
-    "mtime": 1794751518.898963,
-    "seen": 1794751529.9936087,
+    "mtime": 1794757689.1216974,
+    "seen": 1794757702.1489775,
     "ast_hash": "f04e6e7ba255b14b26ad31d07d8608fe",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/CoverClient.client.luau": {
-    "mtime": 1794751525.2532299,
-    "seen": 1794751529.9936283,
+    "mtime": 1794757696.1353383,
+    "seen": 1794757702.14901,
     "ast_hash": "8319549f7cc2b33ff8ad25533da49952",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/Crosshair.client.luau": {
-    "mtime": 1794751525.5713933,
-    "seen": 1794751529.993629,
+    "mtime": 1794757696.4077897,
+    "seen": 1794757702.1490111,
     "ast_hash": "07907f7f6ffdbce01b87127b7e536b5e",
     "semantic_hash": ""
   },
   "game/ServerScriptService/NPC/NPCService.server.luau": {
-    "mtime": 1794751523.1142125,
-    "seen": 1794751529.9936228,
+    "mtime": 1794757694.0398257,
+    "seen": 1794757702.149002,
     "ast_hash": "b2d88e3cb6792d4d299f509315c02731",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/AimAssist.client.luau": {
-    "mtime": 1794751524.9572592,
-    "seen": 1794751529.993627,
+    "mtime": 1794757695.8459272,
+    "seen": 1794757702.1490088,
     "ast_hash": "8e8e7cc15ead2949f6e6d7f1869a3d9c",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/KillFeedback.client.luau": {
-    "mtime": 1794751527.7244923,
-    "seen": 1794751529.9936354,
+    "mtime": 1794757699.2720416,
+    "seen": 1794757702.1490254,
     "ast_hash": "f66c4760f82381277c899a2b1f170acd",
     "semantic_hash": ""
   },
   "game/ServerScriptService/NPC/GuardService.server.luau": {
-    "mtime": 1794751522.5217712,
-    "seen": 1794751529.9936206,
+    "mtime": 1794757693.5130458,
+    "seen": 1794757702.1489985,
     "ast_hash": "b4324387967f95b2153c1a7aadf2e007",
     "semantic_hash": ""
   },
   "game/ServerScriptService/NPC/NPCCommon.luau": {
-    "mtime": 1794751522.78983,
-    "seen": 1794751529.9936216,
+    "mtime": 1794757693.773327,
+    "seen": 1794757702.1490002,
     "ast_hash": "30f6677bc02fbd28f30610ad9cdff1b1",
     "semantic_hash": ""
   },
   "game/StarterPack/Sniper/GunClient.client.luau": {
-    "mtime": 1794751524.6823761,
-    "seen": 1794751529.9936264,
-    "ast_hash": "40084c12ca66e73bf34f185bea9e8be6",
+    "mtime": 1794757695.5840533,
+    "seen": 1794757702.1490073,
+    "ast_hash": "1963d7d8bd0c7f3bb52c763f86801b8f",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Bank/BankDoors.server.luau": {
-    "mtime": 1794751518.5910065,
-    "seen": 1794751529.9936075,
+    "mtime": 1794757688.8577776,
+    "seen": 1794757702.1489751,
     "ast_hash": "b74bc8e587a0e37b8bee6df20f56a310",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Heist/Blocky.luau": {
-    "mtime": 1794751515.9287422,
-    "seen": 1794751529.9935946,
+    "mtime": 1794757683.921645,
+    "seen": 1794757702.148945,
     "ast_hash": "3c437f7033a0e96124de56379d345784",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Heist/Items.luau": {
-    "mtime": 1794751516.1914237,
-    "seen": 1794751529.9935963,
+    "mtime": 1794757685.6244926,
+    "seen": 1794757702.1489556,
     "ast_hash": "7ee644bac6b95fa8b6c7a35d067f9349",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Heist/Net.luau": {
-    "mtime": 1794751516.4596665,
-    "seen": 1794751529.9935985,
+    "mtime": 1794757685.8873494,
+    "seen": 1794757702.1489577,
     "ast_hash": "30791a6515410194d036722c83eed49b",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Heist/Noobla.luau": {
-    "mtime": 1794751516.7234738,
-    "seen": 1794751529.9935994,
+    "mtime": 1794757686.1575534,
+    "seen": 1794757702.1489592,
     "ast_hash": "ed7179d960254c250aec96b15ef8d0e4",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Heist/Sfx.luau": {
-    "mtime": 1794751516.9902241,
-    "seen": 1794751529.9936006,
+    "mtime": 1794757687.074857,
+    "seen": 1794757702.1489637,
     "ast_hash": "9da01d730715afc0125a84be1b63317a",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/Data.luau": {
-    "mtime": 1794751519.1847773,
-    "seen": 1794751529.9936097,
+    "mtime": 1794757689.6955495,
+    "seen": 1794757702.14898,
     "ast_hash": "f0b763a20989effe7ac065509c1e9f8c",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/HeistMain.server.luau": {
-    "mtime": 1794751519.4596338,
-    "seen": 1794751529.9936104,
-    "ast_hash": "c459d3244dd97a27c43fcc774caa6e36",
+    "mtime": 1794757689.9555538,
+    "seen": 1794757702.148982,
+    "ast_hash": "753bf4a0f818b6b78674028a135322ea",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/Npcs.luau": {
-    "mtime": 1794751521.0740895,
-    "seen": 1794751529.9936154,
-    "ast_hash": "0dea36b92390e4e977586f761099b376",
+    "mtime": 1794757691.8040915,
+    "seen": 1794757702.1489906,
+    "ast_hash": "7a8cb6fc827b095538b5478d9305025a",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/Plan.luau": {
-    "mtime": 1794751521.3510172,
-    "seen": 1794751529.9936163,
+    "mtime": 1794757692.072396,
+    "seen": 1794757702.1489923,
     "ast_hash": "d51d7b6820326d5dd0809e7580ad5a8c",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/Run.luau": {
-    "mtime": 1794751521.6743724,
-    "seen": 1794751529.993617,
-    "ast_hash": "d563147f077d7f6c4391ec14c1cbf32e",
+    "mtime": 1794757692.65338,
+    "seen": 1794757702.1489937,
+    "ast_hash": "e5fb8d900d8f89fdd1013a1dbae647a1",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/Tools.luau": {
-    "mtime": 1794751521.9499948,
-    "seen": 1794751529.9936182,
-    "ast_hash": "1a8cd4631c8250dedc8d2be3129842e2",
+    "mtime": 1794757692.9469268,
+    "seen": 1794757702.1489952,
+    "ast_hash": "0b81f4a4c98cf8fe8192056fdf4a697e",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/Vehicles.luau": {
-    "mtime": 1794751522.2344143,
-    "seen": 1794751529.993619,
-    "ast_hash": "1d00c470a93b176af05ff874522e6863",
+    "mtime": 1794757693.2241883,
+    "seen": 1794757702.1489966,
+    "ast_hash": "70c020eb154a028c0aa6fc7d738668bf",
     "semantic_hash": ""
   },
   "game/ServerStorage/Builders/HeistMapBuilder.luau": {
-    "mtime": 1794751524.0814223,
-    "seen": 1794751529.9936242,
+    "mtime": 1794757694.9681337,
+    "seen": 1794757702.1490045,
     "ast_hash": "6e586eb3484751fc1d3a2bcdd5ed5551",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/Heist/Driving.client.luau": {
-    "mtime": 1794751526.24368,
-    "seen": 1794751529.9936306,
+    "mtime": 1794757697.2599173,
+    "seen": 1794757702.1490157,
     "ast_hash": "1014eb42a1e13b318ec345600f6ff2f6",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/Heist/HeistClient.client.luau": {
-    "mtime": 1794751526.5501513,
-    "seen": 1794751529.9936318,
-    "ast_hash": "cebef097b032345b64ddd83761031a5d",
+    "mtime": 1794757697.6408753,
+    "seen": 1794757702.1490166,
+    "ast_hash": "4e8841536beaa52de66b522f6eb17a84",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/Heist/InventoryUI.luau": {
-    "mtime": 1794751526.8607447,
-    "seen": 1794751529.9936328,
+    "mtime": 1794757697.903645,
+    "seen": 1794757702.149018,
     "ast_hash": "b8f1e9aaa1a59236ce6ace4901e8538e",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/Heist/PlannerUI.luau": {
-    "mtime": 1794751527.4567053,
-    "seen": 1794751529.9936345,
+    "mtime": 1794757698.7307076,
+    "seen": 1794757702.1490226,
     "ast_hash": "3e04f42278a336a36fee8ed58c400ffb",
     "semantic_hash": ""
   },
   "game/ReplicatedStorage/Heist/Voices.luau": {
-    "mtime": 1794751517.2623196,
-    "seen": 1794751529.993602,
+    "mtime": 1794757687.3376217,
+    "seen": 1794757702.148966,
     "ast_hash": "edf0f0c9a76a5adc46ad9032f34ee869",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/NpcCombat.luau": {
-    "mtime": 1794751519.7863286,
-    "seen": 1794751529.9936116,
+    "mtime": 1794757690.6511018,
+    "seen": 1794757702.1489835,
     "ast_hash": "f69d233237c44a5bac359cc2f9138355",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/NpcLife.luau": {
-    "mtime": 1794751520.119402,
-    "seen": 1794751529.9936125,
+    "mtime": 1794757690.948608,
+    "seen": 1794757702.1489854,
     "ast_hash": "688d396d88cfaca89cb5c05e8c7977d4",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/NpcLines.luau": {
-    "mtime": 1794751520.426116,
-    "seen": 1794751529.9936135,
+    "mtime": 1794757691.210711,
+    "seen": 1794757702.1489866,
     "ast_hash": "ed42b39a8745737046dc39b0a8a3f245",
     "semantic_hash": ""
   },
   "game/ServerScriptService/Heist/NpcNav.luau": {
-    "mtime": 1794751520.708997,
-    "seen": 1794751529.9936144,
+    "mtime": 1794757691.4896343,
+    "seen": 1794757702.1489892,
     "ast_hash": "d13245f0c232b80b2868e1a72777bf02",
     "semantic_hash": ""
   },
   "game/StarterPlayer/StarterPlayerScripts/Heist/NpcVoice.client.luau": {
-    "mtime": 1794751527.1361353,
-    "seen": 1794751529.9936335,
+    "mtime": 1794757698.4380164,
+    "seen": 1794757702.1490211,
     "ast_hash": "9d20b45569a86a3327231b01c6b69fe4",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/ActionAnim.luau": {
+    "mtime": 1794757683.6376421,
+    "seen": 1794757702.1489415,
+    "ast_hash": "5ade0a7b7f38693f29d8eee44152ff6a",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/Cine.luau": {
+    "mtime": 1794757684.209053,
+    "seen": 1794757702.1489472,
+    "ast_hash": "0afb27fdcb4991afd7f8f131510f50cc",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/CineMeta.luau": {
+    "mtime": 1794757684.4720397,
+    "seen": 1794757702.148949,
+    "ast_hash": "2c7d43572394c2de745d5551db43eaac",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/CineRides.luau": {
+    "mtime": 1794757684.8155222,
+    "seen": 1794757702.1489506,
+    "ast_hash": "897407958e7fe7de9f234569df699d94",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/Cinematics.luau": {
+    "mtime": 1794757685.0910792,
+    "seen": 1794757702.1489518,
+    "ast_hash": "79232e02211f924ceadae02f2ede3d56",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/CrewVan.luau": {
+    "mtime": 1794757685.3562953,
+    "seen": 1794757702.1489534,
+    "ast_hash": "189d356c34d664717fe6e795f31b1611",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/NpcPoses.luau": {
+    "mtime": 1794757686.4421084,
+    "seen": 1794757702.1489608,
+    "ast_hash": "589c827b826094dec7c6059041b802ae",
+    "semantic_hash": ""
+  },
+  "game/ReplicatedStorage/Heist/Ride.luau": {
+    "mtime": 1794757686.7912462,
+    "seen": 1794757702.148962,
+    "ast_hash": "a7c2eea2b359b5127d730ae0d209e234",
+    "semantic_hash": ""
+  },
+  "game/ServerScriptService/Heist/Actions.luau": {
+    "mtime": 1794757689.4056563,
+    "seen": 1794757702.1489787,
+    "ast_hash": "82485a2e69b860f7288fa43f86c48583",
+    "semantic_hash": ""
+  },
+  "game/StarterPlayer/StarterPlayerScripts/Heist/ActionClient.client.luau": {
+    "mtime": 1794757696.9716198,
+    "seen": 1794757702.149014,
+    "ast_hash": "6a6efd56204f1a2a467f5c0d534391de",
+    "semantic_hash": ""
+  },
+  "game/StarterPlayer/StarterPlayerScripts/Heist/NpcBody.client.luau": {
+    "mtime": 1794757698.1724858,
+    "seen": 1794757702.1490195,
+    "ast_hash": "c83aa856d1dce0c638e81573aec1261d",
+    "semantic_hash": ""
+  },
+  "game/StarterPlayer/StarterPlayerScripts/Heist/TestHooks.client.luau": {
+    "mtime": 1794757698.9897752,
+    "seen": 1794757702.149024,
+    "ast_hash": "0049bf6cff5dd7c479c74c051e82356d",
     "semantic_hash": ""
   }
 }

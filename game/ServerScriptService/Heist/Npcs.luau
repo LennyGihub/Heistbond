@@ -90,6 +90,10 @@ Npcs.zipTie = function(_p: Player): boolean
 	return false
 end
 Npcs.mode = "Off" -- "Scout" (bank open, no crime expected) or "Heist"
+Npcs.act = function(_p: Player, _name: string, _effectAt: number): boolean
+	return true
+end
+Npcs.gesture = function(_p: Player, _name: string) end
 
 local SKINS = { RGB(234, 184, 146), RGB(204, 142, 105), RGB(160, 105, 75), RGB(110, 72, 50) }
 local HAIR = { 7193401217, 9243992729, 9244010432 }
@@ -289,11 +293,9 @@ local function pose(n: Npc, kind: string)
 	end
 	for _, side in { "Right", "Left" } do
 		local sign = if side == "Right" then 1 else -1
-		if kind == "up" then
-			rotate(n, side .. "Shoulder", CFrame.Angles(math.rad(165), 0, math.rad(-12 * sign)))
-		elseif kind == "tied" then
-			rotate(n, side .. "Shoulder", CFrame.Angles(math.rad(-35), 0, math.rad(20 * sign)))
-		elseif kind == "talk" and side == "Right" then
+		-- "up" (hands up / hostage) and "tied" are animated on every client (NpcBody): smooth, trembling,
+		-- breathing, glancing around. The server only sets PoseKind.
+		if kind == "talk" and side == "Right" then
 			rotate(n, "RightShoulder", CFrame.Angles(math.rad(50), 0, math.rad(-8)))
 			rotate(n, "RightElbow", CFrame.Angles(math.rad(60), 0, 0))
 		elseif kind == "phone" and side == "Right" then
@@ -314,18 +316,27 @@ function Npcs.setStance(n: Npc, name: string)
 	if n.stance == name or n.state == "Dead" then
 		return
 	end
+	local from = n.stance
 	n.stance = name
+	n.model:SetAttribute("Stance", name)
 	refreshAnim(n)
 	local s = STANCES[name]
-	local info = TweenInfo.new(0.25, Enum.EasingStyle.Quad)
+	-- kneeling (and getting up from it) is animated on the clients (NpcBody bends the legs from the real
+	-- hip drop): the drop itself is slow and eased so it reads as a body going down, not a snap
+	local clientLegs = name == "kneel" or (from == "kneel" and name == "stand")
+	local info = if name == "kneel" then TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		elseif clientLegs then TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		else TweenInfo.new(0.25, Enum.EasingStyle.Quad)
 	TweenService:Create(n.hum, info, { HipHeight = n.hipBase - s.drop }):Play()
 	for _, side in { "Left", "Right" } do
 		local hip, knee = n.joints[side .. "Hip"], n.joints[side .. "Knee"]
+		local hipRot = if clientLegs then 0 else s.hip
+		local kneeRot = if clientLegs then 0 else s.knee
 		if hip then
-			TweenService:Create(hip.inst, info, { [hip.prop] = hip.c0 * CFrame.Angles(s.hip, 0, 0) }):Play()
+			TweenService:Create(hip.inst, info, { [hip.prop] = hip.c0 * CFrame.Angles(hipRot, 0, 0) }):Play()
 		end
 		if knee then
-			TweenService:Create(knee.inst, info, { [knee.prop] = knee.c0 * CFrame.Angles(s.knee, 0, 0) }):Play()
+			TweenService:Create(knee.inst, info, { [knee.prop] = knee.c0 * CFrame.Angles(kneeRot, 0, 0) }):Play()
 		end
 	end
 end
@@ -535,6 +546,8 @@ local function new(role: string, name: string, cf: CFrame, desc: HumanoidDescrip
 	model:SetAttribute("Role", role)
 	NPCCommon.animate(hum, root)
 	captureShoulders(n)
+	model:SetAttribute("HipBase", n.hipBase)
+	model:SetAttribute("Stance", "stand")
 	if role ~= "Guard" and role ~= "Police" then
 		prompt(n, "TiePrompt", "Attacher (zip tie)", 1)
 	end
@@ -969,7 +982,15 @@ local function tie(n: Npc, by: Player)
 	if n.state ~= "HandsUp" and n.state ~= "Down" then
 		return
 	end
+	local bc = by.Character
+	if bc and bc:GetAttribute("Acting") then
+		return -- already busy with another action
+	end
 	if not Npcs.zipTie(by) then
+		return
+	end
+	-- the zip tie animation: kneels, loops it round the wrists and pulls twice; tied at the second tug
+	if not Npcs.act(by, "zipTie", 2.5) or (n.state ~= "HandsUp" and n.state ~= "Down") then
 		return
 	end
 	n.state = "Tied"
@@ -1020,6 +1041,7 @@ function Npcs.shout(pl: Player, look: Vector3): (boolean, string?)
 	end
 	dir = dir.Unit
 	Net.event():FireAllClients("Say", char, Lines.pick({ "À TERRE ! TOUT LE MONDE À TERRE !", "TOUS À TERRE !", "À TERRE ! MAINS VISIBLES !", "PERSONNE NE BOUGE !" }), "angry")
+	Npcs.gesture(pl, "shout")
 	local params = eyeParams()
 	for _, n in list do
 		if n.state ~= "Dead" and n.state ~= "Tied" and n.state ~= "Down" and n.role ~= "Guard" and n.role ~= "Police" and n.model.Parent then
@@ -1066,6 +1088,9 @@ local function wirePrompts()
 							say(n, Lines.react_("cardGrab", n.role), "angry")
 							return
 						end
+					end
+					if not Npcs.act(player, "pickpocket", 1.2) or not n.hasCard then
+						return
 					end
 					n.hasCard = false
 					n.model:SetAttribute("HasCard", false)
@@ -1170,11 +1195,7 @@ local function think(n: Npc, dt: number)
 			end
 		end
 		if n.state == "HandsUp" then
-			-- goofy shaking
-			for side, s in n.shoulders do
-				local sign = if side == "Right" then 1 else -1
-				s.inst[s.prop] = s.c0 * CFrame.Angles(math.rad(165 + rng:NextNumber(-8, 8)), 0, math.rad(-12 * sign + rng:NextNumber(-6, 6)))
-			end
+			-- the trembling is done by the clients (NpcBody)
 			if now > n.handsUntil then
 				n.state = "Idle"
 				pose(n, "none")

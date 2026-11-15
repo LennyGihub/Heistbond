@@ -159,7 +159,19 @@ local function buildTemplates()
 			mag.Size = Vector3.new(0.14, 0.4, 0.2)
 			mag.Transparency = 0
 			mag.Color = RGB(30, 30, 34)
+			-- the magazine sits in the grip (its base just shows under it)
+			local mw = h:FindFirstChild("MagWeld") :: Weld?
+			if mw then
+				mw.C0 = CFrame.new(0, -0.36, 0.08) * CFrame.Angles(math.rad(-15), 0, 0)
+			end
 		end
+		grab.Position = Vector3.new(0, -0.56, 0.1)
+		-- the rear of the slide, where the left hand grips it to rack it (GunAnim)
+		local rack = Instance.new("Attachment")
+		rack.Name = "ChargingHandle"
+		rack.Position = Vector3.new(0, 0.12, -0.12)
+		rack.Parent = h
+		p:SetAttribute("ReloadStyle", "pistol")
 		p:SetAttribute("Ammo", 15)
 		p:SetAttribute("Reserve", 60)
 		p.Parent = templates

@@ -44,8 +44,7 @@ Shot.OnClientEvent:Connect(function(tool: any, kind: any, hitPos: any, normal: a
 		return
 	end
 	if kind == "Reload" then
-		Fx.sound(tool, "Reload")
-		playReload(tool)
+		playReload(tool) -- GunAnim plays every step's sound
 		return
 	end
 	if kind ~= "Fire" or typeof(hitPos) ~= "Vector3" or typeof(normal) ~= "Vector3" then

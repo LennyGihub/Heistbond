@@ -21,7 +21,10 @@ local Data = require(script.Parent:WaitForChild("Data"))
 local Plan = require(script.Parent:WaitForChild("Plan"))
 local Tools = require(script.Parent:WaitForChild("Tools"))
 local Npcs = require(script.Parent:WaitForChild("Npcs"))
+local Actions = require(script.Parent:WaitForChild("Actions"))
 local Vehicles = require(script.Parent:WaitForChild("Vehicles"))
+local CrewVan = require(Heist:WaitForChild("CrewVan"))
+local CineMeta = require(Heist:WaitForChild("CineMeta"))
 
 local Run = {}
 local RGB = Color3.fromRGB
@@ -42,6 +45,8 @@ local sirenSound: Sound? = nil
 local nextWave = 0
 local waveNo = 0 -- 1 = pistol squad, 2+ = SWAT with M4s
 local resultsPending = false
+local crewVan: Model? = nil -- the opening cinematic's van (parked in front of the bank)
+local introToken = 0
 
 local function now(): number
 	return workspace:GetServerTimeNow()
@@ -459,6 +464,13 @@ local function placeC4(pl: Player, spot: BasePart)
 	if pp then
 		pp.Enabled = false
 	end
+	-- cinematic: the character walks up, plants the charge (it appears on the wall at effectAt) and runs
+	if Actions.cine(pl, "c4", spot, "c4Place", spot.CFrame) then
+		task.wait(Actions.Meta.c4.effectAt)
+		if S:GetAttribute("Phase") ~= "Heist" then
+			return
+		end
+	end
 	local brick = Instance.new("Part")
 	brick.Name = "PlantedC4"
 	brick.Size = Vector3.new(1.6, 1, 0.6)
@@ -512,6 +524,13 @@ local function startDrill(pl: Player, spot: BasePart)
 	local pp = spot:FindFirstChild("DrillPrompt") :: ProximityPrompt?
 	if pp then
 		pp.Enabled = false
+	end
+	if Actions.cine(pl, "drill", spot, "drillMount", spot.CFrame) then
+		task.wait(Actions.Meta.drill.effectAt)
+		if S:GetAttribute("Phase") ~= "Heist" then
+			drilling = false
+			return
+		end
 	end
 	-- drill rig on the door (tripod + yellow body + spinning bit)
 	local rig = Instance.new("Model")
@@ -662,6 +681,7 @@ local function openLocker(pl: Player, l: BasePart)
 	if pp then
 		pp.Enabled = false
 	end
+	Actions.run(pl, "locker", 2.2) -- picks the lock, yanks the door, reaches in
 	-- goofy: the little door flaps open
 	local g = l:FindFirstChildOfClass("SurfaceGui")
 	if g then
@@ -713,6 +733,7 @@ local function climb(pl: Player, from: CFrame, to: CFrame, rope: BasePart)
 		return
 	end
 	char:SetAttribute("Climbing", true)
+	Actions.act(pl, "ropeClimb") -- hand over hand, legs gripping (loops until "_stop")
 	root.Anchored = true
 	local start = CFrame.new(from.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.Position)
 	root.CFrame = start
@@ -729,6 +750,7 @@ local function climb(pl: Player, from: CFrame, to: CFrame, rope: BasePart)
 	root.CFrame = CFrame.new(to.Position + Vector3.new(0, 3, 0))
 	root.Anchored = false
 	char:SetAttribute("Climbing", nil)
+	Actions.act(pl, "_stop")
 	local _ = rope
 end
 
@@ -860,6 +882,10 @@ local function useEmp(pl: Player)
 	if not Tools.use(pl, "EMP") then
 		return
 	end
+	-- holds the jammer out, flips the cover, thumbs the button
+	if not Actions.run(pl, "gadget", 1.2) then
+		return
+	end
 	local root = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not root then
 		return
@@ -899,6 +925,11 @@ function Run.throw(pl: Player, dir: any)
 		dir = root.CFrame.LookVector
 	end
 	local d = (dir :: Vector3).Unit
+	Actions.act(pl, "throwBag")
+	task.wait(0.42)
+	if not char or not char:GetAttribute("Carry") then
+		return
+	end
 	local value = (char:GetAttribute("CarryValue") :: number?) or 0
 	local count = (char:GetAttribute("CarryCount") :: number?) or 0
 	clearCarry(pl)
@@ -914,6 +945,14 @@ local function pickUp(pl: Player, bag: BasePart)
 		return
 	end
 	local kind = bag:GetAttribute("Kind") :: string
+	if bag:GetAttribute("Taken") then
+		return
+	end
+	bag:SetAttribute("Taken", true)
+	Actions.run(pl, "pickup", 0.95) -- bends down, grabs it, lifts it
+	if not bag.Parent or (char :: Model).Parent == nil then
+		return
+	end
 	setCarry(pl, kind, (bag:GetAttribute("Value") :: number?) or 0, (bag:GetAttribute("Count") :: number?) or 1)
 	if kind == "case" then
 		S:SetAttribute("ObjectiveState", "carried")
@@ -929,7 +968,8 @@ local function loadInto(pl: Player, veh: Model)
 		toast(pl, "Tu ne portes rien.", "warn")
 		return
 	end
-	if Vehicles.load(veh, (char:GetAttribute("CarryValue") :: number?) or 0, kind == "case") then
+	Actions.run(pl, "loadBag", 0.78) -- swings the bag and heaves it into the bed
+	if char and char:GetAttribute("Carry") and Vehicles.load(veh, (char:GetAttribute("CarryValue") :: number?) or 0, kind == "case") then
 		if kind == "case" then
 			S:SetAttribute("ObjectiveState", "loaded")
 		end
@@ -983,6 +1023,21 @@ local function onClue(pl: Player, m: BasePart)
 	local clue = m:GetAttribute("Clue") :: string
 	local key = CLUE_KEY[clue]
 	if not key then
+		return
+	end
+	-- the body: ear cocked toward people talking, nose in a notice, hands rummaging through the rest
+	local nm = m.Name
+	local anim = if nm == "ClueManager" or nm == "ClueCustomer" or nm == "ClueTeller" then "listen"
+		elseif nm == "ClueNotice" then "read"
+		else "search"
+	local root = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root then
+		local flat = Vector3.new(m.Position.X, root.Position.Y, m.Position.Z)
+		if (flat - root.Position).Magnitude > 0.5 then
+			root.CFrame = CFrame.lookAt(root.Position, flat)
+		end
+	end
+	if not Actions.run(pl, anim, 1.25) then
 		return
 	end
 	if Data.learn(pl, key) then
@@ -1085,33 +1140,93 @@ function Run.startHeist(pl: Player): (boolean, string?)
 	S:SetAttribute("EndTime", t0 + Noobla.timeLimit)
 	S:SetAttribute("Method", Plan.get().method)
 	Npcs.spawnBank("Heist")
-	local start = marker("HeistStart")
+	-- the opening cinematic: the crew's van drives from the hideout to the bank (every client moves it
+	-- and the riders along the same road, timed from t0), parks, and the crew steps out
+	if crewVan then
+		crewVan:Destroy()
+	end
+	local park = CineMeta.introPark
+	-- Studio test hook: skip the opening (tests start at the bank at once)
+	local skipIntro = RunService:IsStudio() and workspace:GetAttribute("TestNoIntro") == true
+	local van = CrewVan.build(park)
+	if not skipIntro then
+		van.Parent = workspace
+	end
+	crewVan = van
+	local riders: { number } = {}
 	local i = 0
 	for _, p in Players:GetPlayers() do
 		crew[p] = true
 		p:SetAttribute("InHeist", true)
 		clearCarry(p)
 		Tools.equip(p, Plan.loadout(p))
-		if start then
-			teleport(p, start.CFrame * CFrame.new((i % 4) * 3 - 4.5, 3, math.floor(i / 4) * 3))
+		local char = p.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if char and hum then
+			hum:UnequipTools()
+			char:SetAttribute("Acting", true)
+			-- in its seat at the parking spot (the clients take over the ride at once)
+			local seat = CrewVan.SEATS[(i % #CrewVan.SEATS) + 1]
+			char:PivotTo(park * CFrame.new(0, CrewVan.BENCH_TOP, 0) * seat * CFrame.new(0, hum.HipHeight + 1.2, 0))
+			if skipIntro then
+				local st = marker("HeistStart")
+				if st then
+					char:PivotTo(st.CFrame * CFrame.new((i % 4) * 3 - 4.5, 3, math.floor(i / 4) * 3))
+				end
+			end
+			table.insert(riders, p.UserId)
 		end
 		i += 1
 	end
-	-- vehicles from the plan, in arrival order
-	pendingVehicles = {}
-	for _, v in Plan.get().vehicles do
-		table.insert(pendingVehicles, table.clone(v))
+	introToken += 1
+	local my = introToken
+	local M = CineMeta.intro
+	local startAt = workspace:GetServerTimeNow() + 0.6
+	if not skipIntro then
+		Event:FireAllClients("Intro", { t0 = startAt, van = van, riders = riders, park = park })
 	end
-	table.sort(pendingVehicles, function(a, b)
-		return a.t < b.t
+	task.delay(if skipIntro then 0.1 else 0.6 + M.len - 1.0, function()
+		if introToken ~= my or S:GetAttribute("Phase") ~= "Starting" then
+			return
+		end
+		for p in crew do
+			local char = p.Character
+			if char then
+				char:SetAttribute("Acting", nil)
+			end
+		end
+		-- vehicles from the plan, in arrival order
+		pendingVehicles = {}
+		for _, v in Plan.get().vehicles do
+			table.insert(pendingVehicles, table.clone(v))
+		end
+		table.sort(pendingVehicles, function(a, b)
+			return a.t < b.t
+		end)
+		-- the clock starts now that the crew is on the sidewalk
+		local t1 = now()
+		S:SetAttribute("StartTime", t1)
+		S:SetAttribute("EndTime", t1 + Noobla.timeLimit)
+		S:SetAttribute("Phase", "Heist")
+		Event:FireAllClients("HeistStarted", Plan.get())
+		toast(nil, "C'EST PARTI ! 15:00 au chrono. Objectif : le casier 167.", "good")
+		-- the driver leaves
+		task.delay(1.5, function()
+			if skipIntro then
+				van:Destroy()
+				return
+			end
+			if crewVan == van and van.Parent then
+				Event:FireAllClients("VanLeave", { t0 = workspace:GetServerTimeNow() + 0.3, van = van })
+				task.delay(7.5, function()
+					if crewVan == van then
+						van:Destroy()
+						crewVan = nil
+					end
+				end)
+			end
+		end)
 	end)
-	-- the clock starts now that everything is in place
-	t0 = now()
-	S:SetAttribute("StartTime", t0)
-	S:SetAttribute("EndTime", t0 + Noobla.timeLimit)
-	S:SetAttribute("Phase", "Heist")
-	Event:FireAllClients("HeistStarted", Plan.get())
-	toast(nil, "C'EST PARTI ! 15:00 au chrono. Objectif : le casier 167.", "good")
 	local _ = pl
 	return true, nil
 end
@@ -1187,6 +1302,10 @@ local function endHeist(reason: string)
 	task.delay(9, function()
 		Npcs.clear()
 		Vehicles.clear()
+		if crewVan then
+			crewVan:Destroy()
+			crewVan = nil
+		end
 		resetBank()
 		for p in crew do
 			p:SetAttribute("InHeist", nil)
@@ -1224,6 +1343,12 @@ function Run.hackResult(pl: Player, token: any, ok: any)
 	hackTokens[pl] = nil
 	local kp = hook("VaultKeypad") :: BasePart?
 	if ok == true and os.clock() - h.at < 60 and S:GetAttribute("Phase") == "Heist" then
+		if kp and Actions.cine(pl, "hack", kp, "hackType", kp.CFrame) then
+			task.wait(Actions.Meta.hack.effectAt)
+			if S:GetAttribute("Phase") ~= "Heist" or S:GetAttribute("VaultOpen") then
+				return
+			end
+		end
 		local led = hook("KeypadLed") :: BasePart?
 		if led then
 			led.Color = RGB(60, 255, 120)
@@ -1276,6 +1401,12 @@ local function onPrompt(pp: ProximityPrompt, pl: Player)
 			toast(pl, "Il faut la carte d'accès Nv.5 (le directeur l'a sur lui).", "warn")
 			return
 		end
+		if parent and parent:IsA("BasePart") and Actions.cine(pl, "card", parent, "cardSwipe", parent.CFrame) then
+			task.wait(Actions.Meta.card.effectAt)
+			if S:GetAttribute("Phase") ~= "Heist" or S:GetAttribute("VaultOpen") then
+				return
+			end
+		end
 		local led = hook("CardLed") :: BasePart?
 		if led then
 			led.Color = RGB(60, 255, 120)
@@ -1290,7 +1421,7 @@ local function onPrompt(pp: ProximityPrompt, pl: Player)
 			startDrill(pl, parent)
 		end
 	elseif name == "FixPrompt" then
-		if drillFix then
+		if drillFix and Actions.run(pl, "fixDrill", 2.05) and drillFix then
 			drillFix(pl)
 		end
 	elseif name == "C4Prompt" then
@@ -1311,12 +1442,17 @@ local function onPrompt(pp: ProximityPrompt, pl: Player)
 			useRope(pl, spot, true)
 		end
 	elseif name == "GlassPrompt" then
-		if parent and parent:IsA("BasePart") then
+		if parent and parent:IsA("BasePart") and Actions.run(pl, "glassBreak", 0.58) then
 			breakGlass(parent, pl)
 		end
 	elseif name == "PickPrompt" then
 		if parent and parent:IsA("BasePart") then
 			pickUp(pl, parent)
+		end
+	elseif name == "EscapePrompt" then
+		local veh = parent and parent.Parent
+		if veh and veh:IsA("Model") then
+			Run.escape(pl, veh)
 		end
 	elseif name == "LoadPrompt" then
 		local veh = parent and parent.Parent
@@ -1324,6 +1460,92 @@ local function onPrompt(pp: ProximityPrompt, pl: Player)
 			loadInto(pl, veh)
 		end
 	end
+end
+
+------------------------------------------------------------------ the getaway (cinematic, no driving)
+
+-- everyone of the crew close to the vehicle gets in; 6 seconds later the vehicle and the riders are in
+-- the hideout garage (the clients play the chase in between). The loot in it is banked by the main loop.
+function Run.escape(pl: Player, veh: Model)
+	if S:GetAttribute("Phase") ~= "Heist" or not crew[pl] or out[pl] or veh:GetAttribute("Escaping") then
+		return
+	end
+	local entry
+	for _, v in spawned do
+		if v.model == veh and not v.returned then
+			entry = v
+		end
+	end
+	local chassis = veh.PrimaryPart
+	if not entry or not chassis then
+		return
+	end
+	local riders: { Player } = {}
+	for p in crew do
+		local char = p.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if p.Parent and not out[p] and root and hum and hum.Health > 0 and not char:GetAttribute("Escaping")
+			and (p == pl or (root.Position - chassis.Position).Magnitude < 24) then
+			table.insert(riders, p)
+		end
+	end
+	veh:SetAttribute("Escaping", true)
+	for _, d in veh:GetDescendants() do
+		if d:IsA("ProximityPrompt") then
+			d.Enabled = false
+		end
+	end
+	local move = chassis:FindFirstChild("Move") :: LinearVelocity?
+	if move then
+		move.PlaneVelocity = Vector2.zero
+	end
+	chassis.AssemblyLinearVelocity = Vector3.zero
+	chassis.Anchored = true
+	local ids, spots = {}, {}
+	for i, p in riders do
+		local char = p.Character :: Model
+		char:SetAttribute("Escaping", true)
+		char:SetAttribute("Acting", true)
+		local ff = Instance.new("ForceField")
+		ff.Name = "EscapeShield"
+		ff.Visible = false
+		ff.Parent = char
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum:UnequipTools()
+		end
+		table.insert(ids, p.UserId)
+		spots[tostring(p.UserId)] = CineMeta.garageSpots[((i - 1) % #CineMeta.garageSpots) + 1]
+	end
+	local LEN = CineMeta.escape.len
+	Event:FireAllClients("Escape", { t0 = workspace:GetServerTimeNow() + 0.25, veh = veh, riders = ids, final = CineMeta.garage, spots = spots })
+	toast(nil, pl.DisplayName .. " met les gaz ! (" .. #riders .. " à bord)", "good")
+	task.delay(0.25 + LEN, function()
+		if not veh.Parent then
+			return
+		end
+		veh:PivotTo(CineMeta.garage)
+		for _, p in riders do
+			local char = p.Character
+			if char and char.Parent then
+				local spot = spots[tostring(p.UserId)]
+				char:PivotTo(CFrame.lookAt(spot, spot + Vector3.new(0, 0, 1)))
+				char:SetAttribute("Acting", nil)
+				local ff = char:FindFirstChild("EscapeShield")
+				if ff then
+					ff:Destroy()
+				end
+			end
+		end
+		task.wait(0.3)
+		veh:SetAttribute("Escaping", nil)
+		for _, p in riders do
+			if p.Character then
+				p.Character:SetAttribute("Escaping", nil)
+			end
+		end
+	end)
 end
 
 ------------------------------------------------------------------ main loop
@@ -1486,7 +1708,7 @@ local function tick(dt: number)
 	if zone then
 		for _, v in spawned do
 			local chassis = v.model.Parent and v.model.PrimaryPart
-			if not v.returned and chassis and inZone(chassis.Position, zone) then
+			if not v.returned and chassis and not v.model:GetAttribute("Escaping") and inZone(chassis.Position, zone) then
 				v.returned = true
 				local value = (v.model:GetAttribute("Value") :: number?) or 0
 				local obj = v.model:GetAttribute("Objective") == true
@@ -1530,8 +1752,25 @@ end
 
 Run.trigger = onPrompt
 
+-- Studio test hook: a getaway vehicle right now (as if the plan had it arrive)
+function Run.testVehicle(p: Player, kind: string, pos: Vector3): Model?
+	local m = Vehicles.spawn(kind, pos, Vector3.new(-1, 0, 0))
+	if m then
+		m:SetAttribute("Owner", p.UserId)
+		table.insert(spawned, { model = m, owner = p.UserId, kind = kind, returned = false })
+	end
+	return m
+end
+
 function Run.isCrew(p: Player): boolean
-	return (crew[p] == true and not out[p]) or scouts[p] == true
+	if scouts[p] == true then
+		return true
+	end
+	if crew[p] ~= true or out[p] or S:GetAttribute("Phase") ~= "Heist" then
+		return false
+	end
+	local char = p.Character
+	return not (char and char:GetAttribute("Escaping"))
 end
 
 function Run.init()
@@ -1544,6 +1783,12 @@ function Run.init()
 	Npcs.onCard = function(p: Player)
 		Tools.give(p, "AccessCard", 1)
 		toast(p, "Tu as la carte d'accès Nv.5 ! Badge-la au lecteur à gauche de la porte du coffre.", "good")
+	end
+	Npcs.act = function(p: Player, name: string, effectAt: number): boolean
+		return Actions.run(p, name, effectAt)
+	end
+	Npcs.gesture = function(p: Player, name: string)
+		Actions.act(p, name) -- a body gesture that doesn't stop the player (the "À terre !" shout)
 	end
 	Npcs.zipTie = function(p: Player): boolean
 		if Tools.use(p, "ZipTies") then

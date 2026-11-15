@@ -188,6 +188,11 @@ local function step(dt: number)
 		return
 	end
 	hum.AutoRotate = false
+	if char:GetAttribute("Acting") == true then
+		speed = 0 -- an action animation or a cinematic is playing (ActionAnim / Cine)
+		strafeDir = Vector3.zero
+		return
+	end
 	if char:GetAttribute("InCover") == true then
 		speed = 0 -- CoverClient moves and turns the character while it is in cover
 		strafeDir = Vector3.zero
