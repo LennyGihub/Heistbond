@@ -121,7 +121,8 @@ FireRemote.OnServerEvent:Connect(function(player: Player, origin: any, direction
 	-- checks from the gun's handle, since the body is below the cover's top.
 	local body = (char:FindFirstChild("UpperTorso") or head) :: BasePart
 	local gunHandle = tool:FindFirstChild("Handle") :: BasePart?
-	local from = if char:GetAttribute("CoverBlind") == true and gunHandle then gunHandle.Position else body.Position
+	local lift = math.clamp((char:GetAttribute("GunLift") :: number?) or 0, 0, 1.8) -- gun lifted over a low wall (set by GunClient)
+	local from = if char:GetAttribute("CoverBlind") == true and gunHandle then gunHandle.Position else body.Position + Vector3.new(0, lift, 0)
 	local block = Workspace:Raycast(from, origin - from, params)
 	if block then
 		origin = block.Position + block.Normal * 0.05

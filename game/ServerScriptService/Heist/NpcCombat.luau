@@ -21,9 +21,9 @@ local N: any
 local rng = Random.new()
 
 local UNIT = {
-	Guard = { dmg = 6, spread = 4.2, burstMin = 2, burstMax = 3, rate = 0.15, react = { 0.45, 0.85 }, speed = 12, mag = 15, reload = 2.2, peek = { 1.3, 2.1 }, hold = { 1.8, 3.6 }, engage = 24, range = 48 },
-	Police = { dmg = 6, spread = 4.5, burstMin = 2, burstMax = 3, rate = 0.15, react = { 0.45, 0.85 }, speed = 12, mag = 15, reload = 2.2, peek = { 1.3, 2.1 }, hold = { 1.8, 3.6 }, engage = 24, range = 48 },
-	Swat = { dmg = 7, spread = 3.3, burstMin = 3, burstMax = 5, rate = 0.09, react = { 0.3, 0.6 }, speed = 13.5, mag = 30, reload = 2.4, peek = { 1.5, 2.5 }, hold = { 1.2, 2.8 }, engage = 18, range = 75 },
+	Guard = { dmg = 6, spread = 4.2, burstMin = 2, burstMax = 3, rate = 0.15, react = { 0.45, 0.85 }, speed = 13, sprint = 15, mag = 15, reload = 2.2, peek = { 1.3, 2.1 }, hold = { 1.8, 3.6 }, engage = 24, range = 48 },
+	Police = { dmg = 6, spread = 4.5, burstMin = 2, burstMax = 3, rate = 0.15, react = { 0.45, 0.85 }, speed = 14, sprint = 16, mag = 15, reload = 2.2, peek = { 1.3, 2.1 }, hold = { 1.8, 3.6 }, engage = 24, range = 48 },
+	Swat = { dmg = 7, spread = 3.3, burstMin = 3, burstMax = 5, rate = 0.09, react = { 0.3, 0.6 }, speed = 15.5, sprint = 17, mag = 30, reload = 2.4, peek = { 1.5, 2.5 }, hold = { 1.2, 2.8 }, engage = 18, range = 75 },
 } :: { [string]: any }
 
 type Cover = { pos: Vector3, stance: string, peek: Vector3?, peekStance: string }
@@ -46,12 +46,16 @@ type Fight = {
 	firing: boolean,
 	started: boolean,
 	spottedOnce: number,
+	bad: { { pos: Vector3, t: number } }, -- covers that turned out to be seen from the threat
+	rushUntil: number,
 }
 
 local squad = {
 	known = {} :: { [Player]: { pos: Vector3, t: number } },
 	exposed = {} :: { [any]: boolean },
 	movers = {} :: { [any]: boolean },
+	rush = {} :: { [any]: boolean }, -- units charging the threat (the others cover them)
+	close = {} :: { [any]: boolean }, -- units in a close-range fight
 	claims = {} :: { [any]: Vector3 },
 	blindBy = nil :: any,
 	radioAt = 0,
@@ -106,7 +110,7 @@ local function worldParams(): RaycastParams
 end
 
 local function blocked(params: RaycastParams, a: Vector3, b: Vector3): boolean
-	return workspace:Raycast(a, b - a, params) ~= nil
+	return N.ray(a, b - a, params, true) ~= nil
 end
 
 local function floorAt(params: RaycastParams, p: Vector3): Vector3?
@@ -202,6 +206,29 @@ end
 
 local DIRS = 14
 
+-- Really hidden? Not just from one point: from the threat's estimated position and 2.5 studs either side
+-- of it (the estimate can be off), for the head, chest and legs of a unit that is a body wide.
+local function robustHidden(params: RaycastParams, tgt: Vector3, g: Vector3, stance: string, wide: boolean): boolean
+	local toT = flat(tgt - g)
+	if toT.Magnitude < 0.1 then
+		return false
+	end
+	local perp = Vector3.new(-toT.Unit.Z, 0, toT.Unit.X)
+	local heights = if stance == "stand" then { 4.4, 2.6, 0.8 } else { 2.7, 1.5, 0.6 }
+	local lateral = if wide then { 0, 0.8, -0.8 } else { 0 }
+	for _, eoff in { Vector3.zero, perp * 2.5, perp * -2.5 } do
+		local eye = tgt + Vector3.new(0, 0.6, 0) + eoff
+		for _, h in heights do
+			for _, l in lateral do
+				if not blocked(params, eye, g + perp * l + Vector3.new(0, h, 0)) then
+					return false
+				end
+			end
+		end
+	end
+	return true
+end
+
 local function findCovers(n: any, f: Fight, tgt: Vector3, U: any): { Cover }
 	local params = worldParams()
 	local myPos = n.root.Position
@@ -220,6 +247,7 @@ local function findCovers(n: any, f: Fight, tgt: Vector3, U: any): { Cover }
 	local axis = if cnt > 0 then flat(centre / cnt - tgt) else flat(myPos - tgt)
 	local axisU = if axis.Magnitude > 0.1 then axis.Unit else Vector3.new(0, 0, 1)
 	local scored: { { c: Cover, s: number } } = {}
+	local weak: { { c: Cover, s: number } } = {} -- only hidden from one point: used if nothing better
 	local wounded = n.hum.Health < n.hum.MaxHealth * 0.4
 	for _, r in { 4, 7, 11, 16, 22 } do
 		for i = 0, DIRS - 1 do
@@ -228,10 +256,21 @@ local function findCovers(n: any, f: Fight, tgt: Vector3, U: any): { Cover }
 			local g = floorAt(params, guess + Vector3.new(0, myFloor.Y - guess.Y + 1, 0))
 			if g and math.abs(g.Y - myFloor.Y) < 2.5 then
 				local dT = (flat(g) - flat(tgt)).Magnitude
-				if dT >= 5 then
+				local isBad = false
+				for _, b in f.bad do
+					if now() - b.t < 15 and (b.pos - g).Magnitude < 4 then
+						isBad = true
+					end
+				end
+				if dT >= 5 and not isBad then
 					local tall = blocked(params, eye, g + Vector3.new(0, 0.5, 0)) and blocked(params, eye, g + Vector3.new(0, 2.6, 0)) and blocked(params, eye, g + Vector3.new(0, 4.4, 0))
 					local low = not tall and blocked(params, eye, g + Vector3.new(0, 0.5, 0)) and blocked(params, eye, g + Vector3.new(0, 1.5, 0)) and blocked(params, eye, g + Vector3.new(0, 2.7, 0))
 					if tall or low then
+						-- the cover must hold up from the sides too, else it is only a wall that looks like cover
+						local solid = (tall and robustHidden(params, tgt, g, "stand", true)) or robustHidden(params, tgt, g, "crouch", true)
+						if solid and not (tall and robustHidden(params, tgt, g, "stand", true)) then
+							tall, low = false, true
+						end
 						local cover: Cover = { pos = g, stance = if tall then "stand" else "crouch", peek = nil, peekStance = "stand" }
 						-- where can it see the threat from, right next to the cover?
 						local toT = flat(tgt - g)
@@ -275,27 +314,25 @@ local function findCovers(n: any, f: Fight, tgt: Vector3, U: any): { Cover }
 								score += 40
 							end
 						end
-						table.insert(scored, { c = cover, s = score })
+						table.insert(if solid then scored else weak, { c = cover, s = if solid then score else score + 45 })
 					end
 				end
 			end
 		end
 	end
-	table.sort(scored, function(a, b)
+	local pool = if #scored > 0 then scored else weak
+	table.sort(pool, function(a, b)
 		return a.s < b.s
 	end)
 	local out = {}
-	for i = 1, math.min(4, #scored) do
-		table.insert(out, scored[i].c)
+	for i = 1, math.min(4, #pool) do
+		table.insert(out, pool[i].c)
 	end
 	return out
 end
 
 local function coverValid(n: any, c: Cover, tgt: Vector3): boolean
-	local params = worldParams()
-	local eye = tgt + Vector3.new(0, 0.6, 0)
-	local top = if c.stance == "stand" then 4.4 else 2.7
-	return blocked(params, eye, c.pos + Vector3.new(0, top, 0)) and blocked(params, eye, c.pos + Vector3.new(0, 1.2, 0))
+	return robustHidden(worldParams(), tgt, c.pos, c.stance, false)
 end
 
 ------------------------------------------------------------------ actions
@@ -314,6 +351,7 @@ local function moveTo(n: any, f: Fight, dest: Vector3, speed: number, arrive: nu
 		speed = speed,
 		arrive = arrive or 2,
 		timeout = 14,
+		maxLen = (dest - n.root.Position).Magnitude * 2.2 + 12, -- no long detours around the building
 		abort = function(): boolean
 			if f.token ~= token or not alive(n) then
 				return true
@@ -360,6 +398,7 @@ end
 local function closeFight(n: any, f: Fight, U: any)
 	N.setStance(n, "stand")
 	n.hum:MoveTo(n.root.Position)
+	squad.close[n] = true
 	local t0 = now()
 	while alive(n) and now() - t0 < 4 and f.seeing do
 		percept(n, f)
@@ -373,7 +412,23 @@ local function closeFight(n: any, f: Fight, U: any)
 		end
 		task.wait(rng:NextNumber(0.25, 0.6))
 	end
+	squad.close[n] = nil
 	setAim(n, nil)
+end
+
+-- a teammate is charging or fighting at close range: the others should cover him
+local function teammateRushing(n: any): boolean
+	for o in squad.rush do
+		if o ~= n then
+			return true
+		end
+	end
+	for o in squad.close do
+		if o ~= n then
+			return true
+		end
+	end
+	return false
 end
 
 -- wait in cover; returns when it is time to do something else
@@ -390,11 +445,29 @@ local function hold(n: any, f: Fight, U: any, tgt: Vector3)
 	if (not f.seeing and f.lastSeenT < now() - 8 and (flat(tgt) - flat(n.root.Position)).Magnitude > 35) or (f.seeing and not f.inRange) then
 		dur = rng:NextNumber(0.2, 0.7) -- far (out of weapon range): keep moving up
 	end
+	if teammateRushing(n) and f.inRange then
+		dur = rng:NextNumber(0.2, 0.6) -- cover fire: a teammate is charging, keep the threat busy
+	end
 	local t0 = now()
 	local lastCheck = t0
+	local seenFor = 0
 	while alive(n) and now() - t0 < dur do
 		percept(n, f)
 		task.wait(0.15)
+		-- if I can see the threat from here, it can see me: this is no cover
+		if f.seeing then
+			seenFor += 0.15
+		else
+			seenFor = 0
+		end
+		if seenFor > 0.45 then
+			if f.inRange and f.cover then
+				return -- in range and in view: shoot back instead of waiting
+			end
+			table.insert(f.bad, { pos = c.pos, t = now() })
+			f.cover = nil
+			return
+		end
 		if f.seeing and f.lastSeen and (flat(f.lastSeen) - flat(n.root.Position)).Magnitude < 7 then
 			return -- rushed
 		end
@@ -459,6 +532,11 @@ local function peek(n: any, f: Fight, U: any)
 	local react = rng:NextNumber(U.react[1], U.react[2])
 	local endT = t0 + rng:NextNumber(U.peek[1], U.peek[2]) + react
 	local fired = 0
+	local covering = teammateRushing(n)
+	if covering then
+		endT += 0.8
+		bark(n, "coverfire")
+	end
 	while alive(n) and now() < endT do
 		percept(n, f)
 		if f.inRange and f.lastSeen then
@@ -466,7 +544,7 @@ local function peek(n: any, f: Fight, U: any)
 			if now() - t0 >= react and not f.firing then
 				burst(n, f, U, rng:NextInteger(U.burstMin, U.burstMax), 1, U.spread)
 				fired += 1
-				if fired >= 2 or f.ammo <= 0 then
+				if fired >= (if covering then 3 else 2) or f.ammo <= 0 then
 					break
 				end
 			end
@@ -512,6 +590,33 @@ local function brain(n: any)
 			n.aimAt = nil
 			task.wait(0.4)
 			continue
+		end
+		-- 0. charge: a unit sent to rush runs at the threat while the others cover it
+		if f.role == "rush" then
+			if now() > f.rushUntil or n.hum.Health < n.hum.MaxHealth * 0.35 then
+				f.role = "base"
+				squad.rush[n] = nil
+				f.cover = nil
+			else
+				squad.rush[n] = true
+				if f.seeing and f.lastSeen and (flat(f.lastSeen) - flat(n.root.Position)).Magnitude < 7 then
+					closeFight(n, f, U)
+				elseif f.inRange and f.lastSeen and f.ammo > 0 and rng:NextNumber() < 0.6 then
+					-- stop for a burst, then keep running
+					N.setStance(n, "stand")
+					n.hum:MoveTo(n.root.Position)
+					setAim(n, f.lastSeen)
+					task.wait(rng:NextNumber(0.15, 0.3))
+					burst(n, f, U, rng:NextInteger(U.burstMin, U.burstMax), 1, U.spread * 1.2)
+					setAim(n, nil)
+				else
+					local toT = flat(tgt) - flat(n.root.Position)
+					local hop = if toT.Magnitude > 14 then n.root.Position + toT.Unit * 14 else tgt
+					moveTo(n, f, Vector3.new(hop.X, n.root.Position.Y, hop.Z), U.sprint, 4)
+				end
+				reloadIfNeeded(n, f, U)
+				continue
+			end
 		end
 		-- 1. in our face: fight
 		if f.seeing and f.lastSeen and (flat(f.lastSeen) - flat(n.root.Position)).Magnitude < 7 then
@@ -577,7 +682,7 @@ local function brain(n: any)
 			local wounded = n.hum.Health < n.hum.MaxHealth * 0.4
 			if f.ammo <= 0 then
 				reloadIfNeeded(n, f, U)
-			elseif exposedNow < maxExposed(#members()) and (not wounded or rng:NextNumber() < 0.4) then
+			elseif exposedNow < maxExposed(#members()) + (if teammateRushing(n) then 1 else 0) and (not wounded or rng:NextNumber() < 0.4) then
 				if f.cover.peek then
 					peek(n, f, U)
 				else
@@ -588,6 +693,8 @@ local function brain(n: any)
 	end
 	squad.exposed[n] = nil
 	squad.movers[n] = nil
+	squad.rush[n] = nil
+	squad.close[n] = nil
 	squad.claims[n] = nil
 	if squad.blindBy == n then
 		squad.blindBy = nil
@@ -601,6 +708,8 @@ function Combat.reset()
 	table.clear(squad.known)
 	table.clear(squad.exposed)
 	table.clear(squad.movers)
+	table.clear(squad.rush)
+	table.clear(squad.close)
 	table.clear(squad.claims)
 	squad.blindBy = nil
 	squad.dispatchAt = 0
@@ -619,7 +728,7 @@ function Combat.init(npcs: any)
 						n.fight = {
 							token = 0, ammo = 0, cover = nil, lastSeen = nil, lastSeenT = 0, seeing = false, inRange = false, lastHp = n.hum.Health,
 							hurtAt = 0, nextBlind = now() + rng:NextNumber(6, 12), barkAt = 0, holds = 0, forward = true, role = "base",
-							firing = false, started = false, spottedOnce = -100,
+							firing = false, started = false, spottedOnce = -100, bad = {}, rushUntil = 0,
 						} :: Fight
 					end
 					local f = n.fight :: Fight
@@ -635,19 +744,44 @@ function Combat.init(npcs: any)
 				bark(ms[rng:NextInteger(1, #ms)], "down", true)
 			end
 			squad.lastCount = #ms
-			-- roles: every third unit (furthest from the threat first) goes around the flank
+			-- roles (sticky): one unit in three goes around the flank; when the others are in position to
+			-- cover, the healthiest unit near the threat is sent to charge it for a few seconds
 			local t = now()
-			if t - squad.roleAt > 5 and #ms >= 3 then
+			if t - squad.roleAt > 4 and #ms >= 3 then
 				squad.roleAt = t
-				table.sort(ms, function(a, b)
-					return a.root.Position.Z < b.root.Position.Z
-				end)
-				for i, n in ms do
+				local flankers, rushers, ready = 0, 0, 0
+				for _, n in ms do
 					local f = n.fight :: Fight
-					local want = if i % 3 == 0 then "flank" else "base"
-					if f.role ~= want and not squad.exposed[n] then
-						f.role = want
-						f.cover = nil
+					if f.role == "flank" then
+						flankers += 1
+					elseif f.role == "rush" then
+						rushers += 1
+					elseif f.cover and not squad.movers[n] then
+						ready += 1 -- in cover, able to cover a charge
+					end
+				end
+				local want = math.floor(#ms / 3)
+				for _, n in ms do
+					local f = n.fight :: Fight
+					if flankers < want and f.role == "base" and not squad.exposed[n] then
+						f.role, f.cover = "flank", nil
+						flankers += 1
+					end
+				end
+				if rushers == 0 and ready >= 2 and squad.known and next(squad.known) ~= nil then
+					local best, bestScore = nil, -1
+					for _, n in ms do
+						local f = n.fight :: Fight
+						local hpFrac = n.hum.Health / n.hum.MaxHealth
+						local sc = hpFrac * (if n.unit == "Swat" then 1.4 else 1) + rng:NextNumber(0, 0.3)
+						if f.role ~= "rush" and hpFrac > 0.6 and f.ammo > 5 and sc > bestScore then
+							best, bestScore = n, sc
+						end
+					end
+					if best then
+						local f = best.fight :: Fight
+						f.role, f.rushUntil, f.cover = "rush", t + rng:NextNumber(8, 12), nil
+						bark(best, "rush", true)
 					end
 				end
 			end

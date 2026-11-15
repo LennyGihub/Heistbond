@@ -487,8 +487,7 @@ end
 ------------------------------------------------------------------ witnesses
 
 local function sees(from: Vector3, to: Vector3): boolean
-	local hit = workspace:Raycast(from, to - from, N.eyeParams())
-	return hit == nil
+	return N.ray(from, to - from, N.eyeParams()) == nil
 end
 
 -- kind: "hostage" (someone was forced down), "death", "flee" (someone runs screaming)

@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 
 local Heist = ReplicatedStorage:WaitForChild("Heist")
 local Net = require(Heist:WaitForChild("Net"))
@@ -15,31 +16,39 @@ local rng = Random.new()
 local MAX_DIST = 85
 
 local MOODS: { [string]: { text: Color3, bg: Color3, vol: number, pitch: number, shake: number } } = {
-	normal = { text = RGB(27, 42, 53), bg = RGB(250, 250, 250), vol = 0.5, pitch = 1, shake = 0 },
-	scared = { text = RGB(20, 70, 140), bg = RGB(220, 238, 255), vol = 0.55, pitch = 1.18, shake = 1 },
-	scream = { text = RGB(200, 20, 20), bg = RGB(255, 232, 228), vol = 0.9, pitch = 1.3, shake = 2 },
-	angry = { text = RGB(150, 50, 0), bg = RGB(255, 238, 205), vol = 0.8, pitch = 0.9, shake = 1 },
-	whisper = { text = RGB(90, 90, 96), bg = RGB(232, 232, 236), vol = 0.22, pitch = 0.95, shake = 0 },
-	radio = { text = RGB(190, 255, 200), bg = RGB(24, 34, 30), vol = 0.6, pitch = 1, shake = 0 },
+	normal = { text = RGB(27, 42, 53), bg = RGB(250, 250, 250), vol = 0.3, pitch = 1, shake = 0 },
+	scared = { text = RGB(20, 70, 140), bg = RGB(220, 238, 255), vol = 0.3, pitch = 1.1, shake = 1 },
+	scream = { text = RGB(200, 20, 20), bg = RGB(255, 232, 228), vol = 0.5, pitch = 1.15, shake = 2 },
+	angry = { text = RGB(150, 50, 0), bg = RGB(255, 238, 205), vol = 0.42, pitch = 0.92, shake = 1 },
+	whisper = { text = RGB(90, 90, 96), bg = RGB(232, 232, 236), vol = 0.14, pitch = 0.95, shake = 0 },
+	radio = { text = RGB(190, 255, 200), bg = RGB(24, 34, 30), vol = 0.3, pitch = 1, shake = 0 },
 }
 
 local speaking: { [Model]: { gui: BillboardGui, stop: boolean } } = {}
 
 local function blipSound(parent: Instance, voice: Voices.Voice): Sound
 	local s = Instance.new("Sound")
-	s.SoundId = Sfx.ID[voice.base] or Sfx.ID.pop
+	s.SoundId = (Voices.bases :: any)[voice.base] or Voices.bases.pop
 	s.RollOffMode = Enum.RollOffMode.InverseTapered
 	s.RollOffMinDistance = 6
-	s.RollOffMaxDistance = 60
+	s.RollOffMaxDistance = 50
 	s.Parent = parent
+	-- warm and round: a little less lows and highs, a touch of room so the notes melt together
+	local eq = Instance.new("EqualizerSoundEffect")
+	eq.LowGain = if voice.radio then -30 else -3
+	eq.MidGain = if voice.radio then 5 else 1
+	eq.HighGain = if voice.radio then -18 else -9
+	eq.Parent = s
+	local rv = Instance.new("ReverbSoundEffect")
+	rv.DecayTime = 0.9
+	rv.Density = 0.6
+	rv.Diffusion = 0.8
+	rv.DryLevel = 0
+	rv.WetLevel = -14
+	rv.Parent = s
 	if voice.radio then
-		local eq = Instance.new("EqualizerSoundEffect")
-		eq.LowGain = -40
-		eq.MidGain = 6
-		eq.HighGain = -25
-		eq.Parent = s
 		local d = Instance.new("DistortionSoundEffect")
-		d.Level = 0.35
+		d.Level = 0.12
 		d.Parent = s
 	end
 	return s
@@ -104,9 +113,10 @@ local function speak(model: Model, text: string, moodName: string)
 	speaking[model] = entry
 
 	task.spawn(function()
-		local pool = { blipSound(head, voice), blipSound(head, voice), blipSound(head, voice) }
+		local pool = { blipSound(head, voice), blipSound(head, voice), blipSound(head, voice), blipSound(head, voice) }
 		local turn = 0
-		local perChar = 1 / (24 * voice.rate)
+		local lastNote = -10
+		local perChar = 1 / (19 * voice.rate)
 		local base = gui.StudsOffset
 		for i = 1, #text do
 			if entry.stop or not gui.Parent then
@@ -115,16 +125,21 @@ local function speak(model: Model, text: string, moodName: string)
 			label.MaxVisibleGraphemes = i
 			local ch = string.lower(string.sub(text, i, i))
 			local vowel = Voices.vowel[ch]
-			if (vowel or i % 3 == 0) and ch ~= " " then
+			-- one soft note on each vowel (not on every letter), with a fast fade in and a gentle fade out
+			if vowel and i - lastNote >= 2 then
+				lastNote = i
 				turn = turn % #pool + 1
 				local s = pool[turn]
 				s:Stop()
 				s.TimePosition = 0
-				s.Volume = mood.vol * (0.8 + rng:NextNumber() * 0.4)
-				s.PlaybackSpeed = voice.pitch * shiftN * mood.pitch * (vowel or 1.0) * (1 + (rng:NextNumber() - 0.5) * 2 * voice.wobble)
+				local peak = mood.vol * (0.85 + rng:NextNumber() * 0.3)
+				s.Volume = 0
+				-- the voice's pitch squeezed into a gentle range (marimba notes get shrill high up)
+				s.PlaybackSpeed = (0.6 + (voice.pitch - 0.5) * 0.55) * shiftN * mood.pitch * vowel * (1 + (rng:NextNumber() - 0.5) * voice.wobble)
 				s:Play()
-				task.delay(0.13 / voice.rate, function()
-					s:Stop()
+				TweenService:Create(s, TweenInfo.new(0.025), { Volume = peak }):Play()
+				task.delay(0.05, function()
+					TweenService:Create(s, TweenInfo.new(0.2, Enum.EasingStyle.Quad), { Volume = 0 }):Play()
 				end)
 			end
 			if mood.shake > 0 then
@@ -135,7 +150,7 @@ local function speak(model: Model, text: string, moodName: string)
 		gui.StudsOffset = base
 		label.MaxVisibleGraphemes = -1
 		for _, s in pool do
-			Debris:AddItem(s, 0.5)
+			Debris:AddItem(s, 1.6)
 		end
 		if not entry.stop then
 			task.wait(1.0 + #text * 0.035)

@@ -52,7 +52,15 @@ Voices.groups = {
 -- the player's own shouts
 Voices.player = { name = "Joueur", pitch = 0.8, rate = 1.1, base = "pop", wobble = 0.06, radio = false, deep = true } :: Voice
 
--- vowel -> pitch multiplier (what makes the babble sound like words)
-Voices.vowel = { a = 1.0, e = 1.14, i = 1.3, o = 0.88, u = 0.78, y = 1.2 }
+-- soft tonal blips (marimba / pluck notes from the Creator Store) instead of percussive pops
+Voices.bases = {
+	pop = "rbxassetid://97005650217537", -- marimba
+	boing = "rbxassetid://124909201153662", -- marimba (rounder)
+	key = "rbxassetid://8206935822", -- pluck
+	beep = "rbxassetid://126130663615387", -- cartoon pluck
+}
+
+-- vowel -> pitch multiplier: notes of a major pentatonic scale, so the babble stays pleasant
+Voices.vowel = { a = 1.0, e = 1.25, i = 1.5, o = 0.84, u = 0.75, y = 1.125 }
 
 return Voices

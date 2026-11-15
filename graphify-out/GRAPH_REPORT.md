@@ -1,7 +1,7 @@
 # Graph Report - Heistbond  (2026-11-15)
 
 ## Corpus Check
-- 44 files · ~84,003 words
+- 44 files · ~85,715 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8ee91494`
+- Built from commit: `a86a8445`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -52,12 +52,12 @@
   game/ServerScriptService/Heist/NpcLife.luau → game/ServerScriptService/Heist/NpcNav.luau
 - `customerLoop()` --calls--> `Lines.pick()`  [INFERRED]
   game/ServerScriptService/Heist/NpcLife.luau → game/ServerScriptService/Heist/NpcLines.luau
-- `looseBag()` --calls--> `Vehicles.load()`  [INFERRED]
-  game/ServerScriptService/Heist/Run.luau → game/ServerScriptService/Heist/Vehicles.luau
-- `placeC4()` --calls--> `Tools.use()`  [INFERRED]
-  game/ServerScriptService/Heist/Run.luau → game/ServerScriptService/Heist/Tools.luau
-- `startDrill()` --calls--> `Data.count()`  [INFERRED]
-  game/ServerScriptService/Heist/Run.luau → game/ServerScriptService/Heist/Data.luau
+- `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
+  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 
 ## Import Cycles
 - None detected.

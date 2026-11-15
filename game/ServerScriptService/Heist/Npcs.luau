@@ -347,6 +347,35 @@ local function eyeParams(): RaycastParams
 	return p
 end
 
+-- a ray that sees and shoots through glass (windows, glass partitions): they hide nothing and stop nothing
+-- for the player's eyes, so they must not for the NPCs' either. Invisible blockers (transparency ~1) stay solid.
+-- decor = true (cover tests): plants, trees and small props don't count as cover either
+local function ray(origin: Vector3, vec: Vector3, params: RaycastParams, decor: boolean?): RaycastResult?
+	for _ = 1, 6 do
+		local hit = workspace:Raycast(origin, vec, params)
+		if not hit then
+			return nil
+		end
+		local inst = hit.Instance
+		local t = inst.Transparency
+		local small = false
+		if decor then
+			local m = inst:FindFirstAncestorWhichIsA("Model")
+			local nm = if m then string.lower(m.Name) else ""
+			small = inst.Size.Magnitude < 4 or string.find(nm, "plant") ~= nil or string.find(nm, "tree") ~= nil or string.find(nm, "bush") ~= nil
+		end
+		if (t >= 0.2 and t < 0.95) or inst.Material == Enum.Material.Glass or small then
+			local list = params.FilterDescendantsInstances
+			table.insert(list, inst)
+			params.FilterDescendantsInstances = list
+		else
+			return hit
+		end
+	end
+	return nil
+end
+Npcs.ray = ray
+
 local function arm(n: Npc, gun: string?)
 	local tools = ServerStorage:FindFirstChild("HeistTools")
 	local src = (if gun == "Pistol" and tools then tools:FindFirstChild("Pistol") else nil) or StarterPack:FindFirstChild("M4A1")
@@ -424,7 +453,7 @@ local function spotCrew(from: Vector3, range: number): (Vector3?, Model?)
 			for _, pt in crewPoints(char) do
 				local d = (pt - from).Magnitude
 				if d < bestD then
-					local hit = workspace:Raycast(from, (pt - from) * 1.02, params)
+					local hit = ray(from, (pt - from) * 1.02, params)
 					if hit and hit.Instance:IsDescendantOf(char) then
 						best, bestChar, bestD = pt, char, d
 						break
@@ -447,7 +476,7 @@ local function fire(n: Npc, aimAt: Vector3, damage: number, spreadDeg: number)
 	local dir = (aimAt - origin).Unit
 	local spread = math.rad(spreadDeg) * math.sqrt(rng:NextNumber())
 	dir = (CFrame.lookAt(Vector3.zero, dir) * CFrame.Angles(0, 0, rng:NextNumber() * math.pi * 2) * CFrame.Angles(spread, 0, 0)).LookVector
-	local hit = workspace:Raycast(origin, dir * 400, eyeParams())
+	local hit = ray(origin, dir * 400, eyeParams())
 	local hitPos = if hit then hit.Position else origin + dir * 400
 	local hitChar = false
 	if hit then

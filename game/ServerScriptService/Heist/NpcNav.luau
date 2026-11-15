@@ -10,7 +10,7 @@ local AGENT = { AgentRadius = 1.9, AgentHeight = 5, AgentCanJump = false, Waypoi
 
 -- walk to `dest`. opts: speed (WalkSpeed), abort() -> true to stop, timeout seconds (default 25),
 -- arrive distance (default 3). Returns true if it got there.
-function Nav.walk(hum: Humanoid, root: BasePart, dest: Vector3, opts: { speed: number?, abort: (() -> boolean)?, timeout: number?, arrive: number? }?): boolean
+function Nav.walk(hum: Humanoid, root: BasePart, dest: Vector3, opts: { speed: number?, abort: (() -> boolean)?, timeout: number?, arrive: number?, maxLen: number? }?): boolean
 	local o = opts or {}
 	local abort = o.abort
 	local arrive = o.arrive or 3
@@ -26,6 +26,15 @@ function Nav.walk(hum: Humanoid, root: BasePart, dest: Vector3, opts: { speed: n
 		return false
 	end
 	local wps = path:GetWaypoints()
+	if o.maxLen then
+		local len = 0
+		for i = 2, #wps do
+			len += (wps[i].Position - wps[i - 1].Position).Magnitude
+		end
+		if len > o.maxLen then
+			return false -- the way round is much longer than the straight line: not worth it
+		end
+	end
 	for i = 2, #wps do
 		local wp = wps[i]
 		hum:MoveTo(wp.Position)

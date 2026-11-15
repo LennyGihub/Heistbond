@@ -109,7 +109,7 @@ Request.OnServerInvoke = function(player: Player, action: any, a: any, b: any, c
 		elseif a == "state" then
 			local out = {}
 			for _, n in Npcs.list do
-				table.insert(out, string.format("%s|%s|%s|%.0f,%.0f,%.0f|%s|hp%.0f|stance %s|busy %s|%s", n.model.Name, n.role, n.state, n.root.Position.X, n.root.Position.Y, n.root.Position.Z, tostring(n.model:GetAttribute("Unit")), n.hum.Health, n.stance, tostring(n.busy), if n.fight then string.format("cover=%s seen=%s ammo=%d", if n.fight.cover then n.fight.cover.stance else "-", tostring(n.fight.seeing), n.fight.ammo) else "-"))
+				table.insert(out, string.format("%s|%s|%s|%.0f,%.0f,%.0f|%s|hp%.0f|stance %s|busy %s|%s", n.model.Name, n.role, n.state, n.root.Position.X, n.root.Position.Y, n.root.Position.Z, tostring(n.model:GetAttribute("Unit")), n.hum.Health, n.stance, tostring(n.busy), if n.fight then string.format("cover=%s seen=%s ammo=%d role=%s", if n.fight.cover then n.fight.cover.stance else "-", tostring(n.fight.seeing), n.fight.ammo, n.fight.role) else "-"))
 			end
 			return true, table.concat(out, "\n")
 		elseif a == "combatstats" then
