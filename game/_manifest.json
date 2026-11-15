@@ -9,6 +9,41 @@
    "sha1": "eaee6c1f492288fb8a975bd56226e9ff1314e0b0"
   },
   {
+   "file": "ReplicatedStorage/Heist/Blocky.luau",
+   "instance": "game.ReplicatedStorage.Heist.Blocky",
+   "class": "ModuleScript",
+   "bytes": 10892,
+   "sha1": "5a81d0a66f272880b911bab328731292801e2d1a"
+  },
+  {
+   "file": "ReplicatedStorage/Heist/Items.luau",
+   "instance": "game.ReplicatedStorage.Heist.Items",
+   "class": "ModuleScript",
+   "bytes": 4287,
+   "sha1": "2d9c590515f0558dedaa65fbd33de930f220c1e9"
+  },
+  {
+   "file": "ReplicatedStorage/Heist/Net.luau",
+   "instance": "game.ReplicatedStorage.Heist.Net",
+   "class": "ModuleScript",
+   "bytes": 1648,
+   "sha1": "35a51cac9da2d2588aecc41a136816f3b9070663"
+  },
+  {
+   "file": "ReplicatedStorage/Heist/Noobla.luau",
+   "instance": "game.ReplicatedStorage.Heist.Noobla",
+   "class": "ModuleScript",
+   "bytes": 3107,
+   "sha1": "77ac5a24371d952f7aeca0658b460073d7c9ca73"
+  },
+  {
+   "file": "ReplicatedStorage/Heist/Sfx.luau",
+   "instance": "game.ReplicatedStorage.Heist.Sfx",
+   "class": "ModuleScript",
+   "bytes": 6974,
+   "sha1": "39794b8acd0cd18eb9f8de90e7df146f43683f50"
+  },
+  {
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",
    "instance": "game.ReplicatedStorage.Weapons.GunAnim",
    "class": "ModuleScript",
@@ -26,15 +61,15 @@
    "file": "ReplicatedStorage/Weapons/WeaponConfig.luau",
    "instance": "game.ReplicatedStorage.Weapons.WeaponConfig",
    "class": "ModuleScript",
-   "bytes": 2374,
-   "sha1": "73b8dc0749cd96bbad328e980ef12bae021277a4"
+   "bytes": 2977,
+   "sha1": "8bff644b47477d3f88b36d97b6d55a454799f4f0"
   },
   {
    "file": "ReplicatedStorage/Weapons/WeaponFx.luau",
    "instance": "game.ReplicatedStorage.Weapons.WeaponFx",
    "class": "ModuleScript",
-   "bytes": 5561,
-   "sha1": "cb438c297543dba8ead42828c99c4037976a76e3"
+   "bytes": 5780,
+   "sha1": "406af6b877730df6fea780d47caf789f474930ff"
   },
   {
    "file": "ServerScriptService/Bank/BankDoors.server.luau",
@@ -49,6 +84,55 @@
    "class": "Script",
    "bytes": 1818,
    "sha1": "ef497f1a3001aa9cb7453309cf76d704c1996d03"
+  },
+  {
+   "file": "ServerScriptService/Heist/Data.luau",
+   "instance": "game.ServerScriptService.Heist.Data",
+   "class": "ModuleScript",
+   "bytes": 4458,
+   "sha1": "8bcb18956e1a01bd3cf2022a4e8e60bc2984da83"
+  },
+  {
+   "file": "ServerScriptService/Heist/HeistMain.server.luau",
+   "instance": "game.ServerScriptService.Heist.HeistMain",
+   "class": "Script",
+   "bytes": 3312,
+   "sha1": "0b2140d875a5d611a7c30792ef9ed7437a76e115"
+  },
+  {
+   "file": "ServerScriptService/Heist/Npcs.luau",
+   "instance": "game.ServerScriptService.Heist.Npcs",
+   "class": "ModuleScript",
+   "bytes": 32343,
+   "sha1": "cc67e9b2659464f1885a1e4d6e47c47e2d49c0d8"
+  },
+  {
+   "file": "ServerScriptService/Heist/Plan.luau",
+   "instance": "game.ServerScriptService.Heist.Plan",
+   "class": "ModuleScript",
+   "bytes": 7346,
+   "sha1": "3cb0927cb54ddb5296147d10c81342d24d5da978"
+  },
+  {
+   "file": "ServerScriptService/Heist/Run.luau",
+   "instance": "game.ServerScriptService.Heist.Run",
+   "class": "ModuleScript",
+   "bytes": 53054,
+   "sha1": "2a9fb70a768a89670e5d381725b08f19a81c4ac5"
+  },
+  {
+   "file": "ServerScriptService/Heist/Tools.luau",
+   "instance": "game.ServerScriptService.Heist.Tools",
+   "class": "ModuleScript",
+   "bytes": 12666,
+   "sha1": "0293e339d390ead7d75e27ba83b5b7c8f6e1b15e"
+  },
+  {
+   "file": "ServerScriptService/Heist/Vehicles.luau",
+   "instance": "game.ServerScriptService.Heist.Vehicles",
+   "class": "ModuleScript",
+   "bytes": 12692,
+   "sha1": "6153eb74fe379eb28988cdf12fc32a5ef718c1e2"
   },
   {
    "file": "ServerScriptService/NPC/GuardService.server.luau",
@@ -75,29 +159,29 @@
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
    "instance": "game.ServerScriptService.Weapons.WeaponServer",
    "class": "Script",
-   "bytes": 11508,
-   "sha1": "17cc7c131b899088266b90f7fc9ec5d1d973f564"
+   "bytes": 11791,
+   "sha1": "656fafdef4f9168c551a0d0e4a2120a8ef1cae5e"
   },
   {
-   "file": "ServerStorage/Builders/AtlasBankBuilder.luau",
-   "instance": "game.ServerStorage.Builders.AtlasBankBuilder",
+   "file": "ServerStorage/Builders/HeistMapBuilder.luau",
+   "instance": "game.ServerStorage.Builders.HeistMapBuilder",
    "class": "ModuleScript",
-   "bytes": 84156,
-   "sha1": "c1825e49748bf6d6b5b9d9a401264667eaa972d9"
+   "bytes": 86405,
+   "sha1": "5519c2758b5300204ae3403e6271494a2912c0b9"
   },
   {
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 40808,
-   "sha1": "4385c1cf9c062f320aa5563b464b8fa35d6d5527"
+   "bytes": 41281,
+   "sha1": "c30daf854d2f1dbb0acc26dd95f9989c5b60af9f"
   },
   {
    "file": "StarterPack/Sniper/GunClient.client.luau",
    "instance": "game.StarterPack.Sniper.GunClient",
    "class": "LocalScript",
-   "bytes": 40808,
-   "sha1": "4385c1cf9c062f320aa5563b464b8fa35d6d5527"
+   "bytes": 41281,
+   "sha1": "c30daf854d2f1dbb0acc26dd95f9989c5b60af9f"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/AimAssist.client.luau",
@@ -124,8 +208,36 @@
    "file": "StarterPlayer/StarterPlayerScripts/HeavyMovement.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.HeavyMovement",
    "class": "LocalScript",
-   "bytes": 14397,
-   "sha1": "c94aa2f047d4b9a7f14fd527278a88b71db7f05b"
+   "bytes": 14488,
+   "sha1": "4aa933b1ab161ce18e17fd0af08035b0cd9a8182"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/Heist/Driving.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.Heist.Driving",
+   "class": "LocalScript",
+   "bytes": 2737,
+   "sha1": "5e9b49a27e9857d446578c0fabf699f6e728e608"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/Heist/HeistClient.client.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.Heist.HeistClient",
+   "class": "LocalScript",
+   "bytes": 23202,
+   "sha1": "4a04c97b3c958d2c1f9f6824cfeab953e82f98e5"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/Heist/InventoryUI.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.Heist.InventoryUI",
+   "class": "ModuleScript",
+   "bytes": 5747,
+   "sha1": "26ee3d2f7e6c5855f91a47039121043ad4989d68"
+  },
+  {
+   "file": "StarterPlayer/StarterPlayerScripts/Heist/PlannerUI.luau",
+   "instance": "game.StarterPlayer.StarterPlayerScripts.Heist.PlannerUI",
+   "class": "ModuleScript",
+   "bytes": 28223,
+   "sha1": "1ef5ae97d8c5ee3b58f219def1405ce3e8bc70fa"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/KillFeedback.client.luau",

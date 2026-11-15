@@ -23,6 +23,24 @@ local Fx = require(Weapons:WaitForChild("WeaponFx"))
 local GunPose = require(Weapons:WaitForChild("GunPose"))
 local GunAnim = require(Weapons:WaitForChild("GunAnim"))
 local cfg = Config[tool.Name]
+do -- heist attachments: the loadout sets these tool attributes (grip = less recoil, holo = tighter aim)
+	local c = table.clone(cfg)
+	local rm = tool:GetAttribute("RecoilMult")
+	if type(rm) == "number" then
+		c.RecoilUp *= rm
+		c.RecoilSide *= rm
+	end
+	local sm = tool:GetAttribute("SpreadMult")
+	if type(sm) == "number" then
+		c.AimSpread *= sm
+		c.HipSpread *= sm
+	end
+	local lb = tool:GetAttribute("Label")
+	if type(lb) == "string" then
+		c.Label = lb
+	end
+	cfg = c
+end
 local remotes = ReplicatedStorage:WaitForChild("WeaponRemotes")
 local FireRemote = remotes:WaitForChild("Fire") :: RemoteEvent
 local ReloadRemote = remotes:WaitForChild("Reload") :: RemoteEvent

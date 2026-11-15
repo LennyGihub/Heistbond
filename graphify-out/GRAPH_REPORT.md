@@ -1,25 +1,25 @@
-# Graph Report - Heistbond  (2026-11-14)
+# Graph Report - Heistbond  (2026-11-15)
 
 ## Corpus Check
-- 22 files · ~43,464 words
+- 38 files · ~72,811 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
 ## Summary
-- 205 nodes · 361 edges · 20 communities (13 shown, 7 thin omitted)
-- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.85)
+- 321 nodes · 628 edges · 23 communities (13 shown, 10 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 62 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4abc63c1`
+- Built from commit: `4b70cb13`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - GunClient.client.luau
-- .mcp.json
-- README.md
-- GunAnim.luau
+- Data.luau
+- WeaponServer.server.luau
+- HeistMapBuilder.luau
 - Heistbond - Roblox dev workspace
 - HeavyMovement.client.luau
 - .mcp.json
@@ -27,55 +27,55 @@
 - CoverClient.client.luau
 - CoverPose.luau
 - Sniper/GunClient.client.luau
-- spawnOne
+- Run.luau
 - AimAssist.client.luau
 - GuardService.server.luau
-- AtlasBankBuilder.luau
+- Blocky.luau
 
 ## God Nodes (most connected - your core abstractions)
-1. `P()` - 17 edges
-2. `fireOnce()` - 11 edges
-3. `fireOnce()` - 11 edges
-4. `folder()` - 10 edges
-5. `consult()` - 9 edges
-6. `spawnOne()` - 8 edges
-7. `monitor()` - 7 edges
-8. `GunAnim.stop()` - 7 edges
-9. `playReload()` - 7 edges
-10. `findWall()` - 7 edges
+1. `P()` - 22 edges
+2. `startDrill()` - 14 edges
+3. `explode()` - 13 edges
+4. `fireOnce()` - 11 edges
+5. `fireOnce()` - 11 edges
+6. `B.new()` - 10 edges
+7. `folder()` - 10 edges
+8. `bank()` - 9 edges
+9. `bankAlert()` - 9 edges
+10. `consult()` - 9 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `render()` --calls--> `B.money()`  [INFERRED]
+  game/StarterPlayer/StarterPlayerScripts/Heist/InventoryUI.luau → game/ReplicatedStorage/Heist/Blocky.luau
 - `fireOnce()` --calls--> `Fx.sound()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+  game/StarterPack/Sniper/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.muzzle()`  [INFERRED]
+  game/StarterPack/Sniper/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 - `fireOnce()` --calls--> `Fx.tracer()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
-- `unequip()` --calls--> `GunAnim.stop()`  [INFERRED]
-  game/StarterPack/M4A1/GunClient.client.luau → game/ReplicatedStorage/Weapons/GunAnim.luau
+  game/StarterPack/Sniper/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
+- `fireOnce()` --calls--> `Fx.impact()`  [INFERRED]
+  game/StarterPack/Sniper/GunClient.client.luau → game/ReplicatedStorage/Weapons/WeaponFx.luau
 
 ## Import Cycles
 - None detected.
 
-## Communities (20 total, 7 thin omitted)
+## Communities (23 total, 10 thin omitted)
 
 ### Community 0 - "GunClient.client.luau"
+Cohesion: 0.10
+Nodes (30): emitterFor(), folder(), Fx.impact(), Fx.muzzle(), Fx.sound(), Fx.tracer(), playSound(), aimFar() (+22 more)
+
+### Community 1 - "Data.luau"
+Cohesion: 0.07
+Nodes (26): get(), Net.event(), Net.request(), Data.add(), Data.addCash(), Data.count(), Data.init(), Data.learn() (+18 more)
+
+### Community 2 - "WeaponServer.server.luau"
 Cohesion: 0.13
-Nodes (23): aimFar(), aimTarget(), bar(), buildHud(), cloneLimb(), corner(), destroyViewArms(), fireOnce() (+15 more)
+Nodes (18): GunAnim.isReloading(), GunAnim.remember(), GunAnim.startReload(), GunAnim.step(), GunAnim.stop(), parts(), restOf(), setMagHidden() (+10 more)
 
-### Community 1 - ".mcp.json"
-Cohesion: 0.33
-Nodes (7): emitterFor(), folder(), Fx.impact(), Fx.muzzle(), Fx.sound(), Fx.tracer(), playSound()
-
-### Community 2 - "README.md"
-Cohesion: 0.24
-Nodes (5): armIK(), onCharacter(), onPlayer(), releaseHold(), takeHold()
-
-### Community 3 - "GunAnim.luau"
-Cohesion: 0.40
-Nodes (10): GunAnim.isReloading(), GunAnim.remember(), GunAnim.startReload(), GunAnim.step(), GunAnim.stop(), parts(), restOf(), setMagHidden() (+2 more)
+### Community 3 - "HeistMapBuilder.luau"
+Cohesion: 0.14
+Nodes (39): at(), ball(), breakPanel(), c4spot(), cabinet(), camera(), cashStack(), ceilingLight() (+31 more)
 
 ### Community 4 - "Heistbond - Roblox dev workspace"
 Cohesion: 0.29
@@ -97,39 +97,39 @@ Nodes (6): CoverPose.apply(), CoverPose.isR15(), lerp(), rig(), rotBetween(), so
 Cohesion: 0.13
 Nodes (23): aimFar(), aimTarget(), bar(), buildHud(), cloneLimb(), corner(), destroyViewArms(), fireOnce() (+15 more)
 
-### Community 14 - "spawnOne"
-Cohesion: 0.27
-Nodes (10): randomInZone(), loadTrack(), NPCCommon.animate(), NPCCommon.build(), NPCCommon.groundAt(), NPCCommon.onDeath(), describe(), randomPoint() (+2 more)
+### Community 14 - "Run.luau"
+Cohesion: 0.14
+Nodes (34): folder(), Sfx.confetti(), Sfx.debris(), Sfx.loop(), Sfx.play(), Sfx.popText(), Sfx.puff(), bagModel() (+26 more)
 
 ### Community 15 - "AimAssist.client.luau"
 Cohesion: 0.83
 Nodes (3): acquire(), headOf(), visible()
 
 ### Community 17 - "GuardService.server.luau"
-Cohesion: 0.14
-Nodes (14): GunPose.anglesTo(), GunPose.cframe(), GunPose.handleAt(), GunPose.handleFrom(), GunPose.pivot(), GunPose.torsoFor(), arm(), brain() (+6 more)
+Cohesion: 0.12
+Nodes (21): GunPose.anglesTo(), GunPose.cframe(), GunPose.handleAt(), GunPose.handleFrom(), GunPose.pivot(), arm(), brain(), eyeParams() (+13 more)
 
-### Community 18 - "AtlasBankBuilder.luau"
-Cohesion: 0.17
-Nodes (32): at(), ball(), boxes(), cabinet(), camera(), cashStack(), ceilingLight(), consult() (+24 more)
+### Community 18 - "Blocky.luau"
+Cohesion: 0.22
+Nodes (24): B.button(), B.click(), B.icon(), B.label(), B.money(), B.new(), B.panel(), B.pop() (+16 more)
 
 ## Knowledge Gaps
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `GunPose.cframe()` connect `GuardService.server.luau` to `README.md`, `GunAnim.luau`?**
-  _High betweenness centrality (0.161) - this node is a cross-community bridge._
-- **Are the 4 inferred relationships involving `fireOnce()` (e.g. with `Fx.impact()` and `Fx.muzzle()`) actually correct?**
-  _`fireOnce()` has 4 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `GunPose.cframe()` connect `GuardService.server.luau` to `WeaponServer.server.luau`?**
+  _High betweenness centrality (0.243) - this node is a cross-community bridge._
+- **Are the 6 inferred relationships involving `startDrill()` (e.g. with `Sfx.loop()` and `Sfx.play()`) actually correct?**
+  _`startDrill()` has 6 INFERRED edges - model-reasoned connections that need verification._
 - **Should `GunClient.client.luau` be split into smaller, more focused modules?**
-  _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
-- **Why does `brain()` connect `GuardService.server.luau` to `spawnOne`?**
-  _High betweenness centrality (0.115) - this node is a cross-community bridge._
+  _Cohesion score 0.09841269841269841 - nodes in this community are weakly interconnected._
+- **Why does `playReload()` connect `WeaponServer.server.luau` to `GuardService.server.luau`?**
+  _High betweenness centrality (0.135) - this node is a cross-community bridge._
+- **Are the 4 inferred relationships involving `explode()` (e.g. with `Sfx.confetti()` and `Sfx.debris()`) actually correct?**
+  _`explode()` has 4 INFERRED edges - model-reasoned connections that need verification._
+- **Should `Data.luau` be split into smaller, more focused modules?**
+  _Cohesion score 0.07308970099667775 - nodes in this community are weakly interconnected._
 - **Are the 4 inferred relationships involving `fireOnce()` (e.g. with `Fx.impact()` and `Fx.muzzle()`) actually correct?**
   _`fireOnce()` has 4 INFERRED edges - model-reasoned connections that need verification._
-- **Should `Sniper/GunClient.client.luau` be split into smaller, more focused modules?**
-  _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
-- **Why does `playReload()` connect `GunAnim.luau` to `GuardService.server.luau`, `README.md`?**
-  _High betweenness centrality (0.100) - this node is a cross-community bridge._

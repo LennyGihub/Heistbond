@@ -211,6 +211,7 @@ local function step(dt: number)
 	local sprinting = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
 		and not aiming
 		and char:GetAttribute("BlockSprint") ~= true
+		and char:GetAttribute("Carry") == nil -- carrying a heist money bag: too heavy to sprint
 	if sprinting and typeof(aimYaw) == "number" and mag > 0.01 then
 		sprinting = wantDir:Dot(Vector3.new(-math.sin(aimYaw), 0, -math.cos(aimYaw))) > 0.7
 	end

@@ -43,7 +43,12 @@ function Fx.sound(tool: Tool, kind: string, volumeScale: number?)
 	local snd = cfg.Sounds :: any
 	if kind == "Fire" then
 		-- layered: soft suppressed thump + crisp action click, slight random pitch so auto fire isn't robotic
-		playSound(handle, snd.Fire, 0.9 * v, 0.94 + math.random() * 0.1, cfg.SoundRange)
+		if tool:GetAttribute("Suppressed") == false then
+			-- heist gun without a silencer: a loud crack heard far away
+			playSound(handle, "rbxassetid://3821795742", 0.8 * v, 1.35 + math.random() * 0.1, 400)
+		else
+			playSound(handle, snd.Fire, 0.9 * v, 0.94 + math.random() * 0.1, cfg.SoundRange)
+		end
 		playSound(handle, snd.Mech, 0.35 * v, 1.25 + math.random() * 0.1, cfg.SoundRange * 0.5)
 	elseif snd[kind] then
 		playSound(handle, snd[kind], 0.7 * v, 1, cfg.SoundRange * 0.5)

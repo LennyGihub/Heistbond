@@ -54,6 +54,31 @@ local Config: { [string]: Weapon } = {
 			Equip = "rbxassetid://78157229382345",
 		},
 	},
+	-- light pistol (heist loadout): built from the M4A1 rig with a blocky pistol body
+	Pistol = {
+		Damage = 20,
+		HeadMultiplier = 2.2,
+		RPM = 420,
+		MagSize = 15,
+		Reserve = 60,
+		Range = 350,
+		HipSpread = 1.8,
+		AimSpread = 0.45,
+		ReloadTime = 1.5,
+		RecoilUp = 1.1,
+		RecoilSide = 0.35,
+		AimFov = 58,
+		AimWalkSpeed = 12,
+		SoundRange = 90,
+		Label = "PISTOLET",
+		Sounds = {
+			Fire = "rbxassetid://90908536337383",
+			Mech = "rbxassetid://72166668675269",
+			Reload = "rbxassetid://122308398024498",
+			Empty = "rbxassetid://107122763048148",
+			Equip = "rbxassetid://78157229382345",
+		},
+	},
 	-- bolt-action sniper: no sight at the hip (and wild there), a zooming scope when aiming
 	Sniper = {
 		Damage = 100,

@@ -148,6 +148,11 @@ FireRemote.OnServerEvent:Connect(function(player: Player, origin: any, direction
 		end
 	end
 	others(player, tool, "Fire", hitPos, normal, hitChar)
+	-- heist hook: alarms on loud shots, bullets break windows and security cameras
+	local heistShot = game:GetService("ServerStorage"):FindFirstChild("HeistShot") :: BindableEvent?
+	if heistShot then
+		heistShot:Fire(player, tool, if result then result.Instance else nil, hitPos)
+	end
 end)
 
 ReloadRemote.OnServerEvent:Connect(function(player: Player)
