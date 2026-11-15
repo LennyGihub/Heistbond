@@ -47,8 +47,8 @@
    "file": "ReplicatedStorage/Heist/Voices.luau",
    "instance": "game.ReplicatedStorage.Heist.Voices",
    "class": "ModuleScript",
-   "bytes": 3137,
-   "sha1": "7bb38563a9acee7eb9d1eb055960a73bd47aac72"
+   "bytes": 3488,
+   "sha1": "c2c359762865e08a2a0b056421d327f4c5014768"
   },
   {
    "file": "ReplicatedStorage/Weapons/GunAnim.luau",
@@ -103,43 +103,43 @@
    "file": "ServerScriptService/Heist/HeistMain.server.luau",
    "instance": "game.ServerScriptService.Heist.HeistMain",
    "class": "Script",
-   "bytes": 4558,
-   "sha1": "5df812ed738177fb8f470e86c18a194d196f40ec"
+   "bytes": 4580,
+   "sha1": "5c66af9a456ca21d9da9de42a3c8d07de4865523"
   },
   {
    "file": "ServerScriptService/Heist/NpcCombat.luau",
    "instance": "game.ServerScriptService.Heist.NpcCombat",
    "class": "ModuleScript",
-   "bytes": 20241,
-   "sha1": "d70dda98a053f046a13a6f0c8c96012a9026857d"
+   "bytes": 25191,
+   "sha1": "b9c5a25d3caa9d4ce26f5886cf3eb4688f24603e"
   },
   {
    "file": "ServerScriptService/Heist/NpcLife.luau",
    "instance": "game.ServerScriptService.Heist.NpcLife",
    "class": "ModuleScript",
-   "bytes": 16155,
-   "sha1": "87f37d6a89f8dd2d30167b963455d04370877ca1"
+   "bytes": 16126,
+   "sha1": "b011fe1d65800e508900f88e11fd6b073e5b5523"
   },
   {
    "file": "ServerScriptService/Heist/NpcLines.luau",
    "instance": "game.ServerScriptService.Heist.NpcLines",
    "class": "ModuleScript",
-   "bytes": 8904,
-   "sha1": "b96f9163d13b8a3e9573a2228978ab64b48de691"
+   "bytes": 9055,
+   "sha1": "c7c57538010924b1a6ad274a4513f4d12782cd52"
   },
   {
    "file": "ServerScriptService/Heist/NpcNav.luau",
    "instance": "game.ServerScriptService.Heist.NpcNav",
    "class": "ModuleScript",
-   "bytes": 2580,
-   "sha1": "3b2aa6af79d68c77cc87324fd7f9849162ebbfed"
+   "bytes": 2839,
+   "sha1": "f05db595fa1d44f15c3bd36dcd920ae64b792059"
   },
   {
    "file": "ServerScriptService/Heist/Npcs.luau",
    "instance": "game.ServerScriptService.Heist.Npcs",
    "class": "ModuleScript",
-   "bytes": 44526,
-   "sha1": "b31ffbe8f34717beb0f3b77c86254154b724233d"
+   "bytes": 45638,
+   "sha1": "6e1e92038d822abddaf760a7b62c375a95c09606"
   },
   {
    "file": "ServerScriptService/Heist/Plan.luau",
@@ -194,8 +194,8 @@
    "file": "ServerScriptService/Weapons/WeaponServer.server.luau",
    "instance": "game.ServerScriptService.Weapons.WeaponServer",
    "class": "Script",
-   "bytes": 11791,
-   "sha1": "656fafdef4f9168c551a0d0e4a2120a8ef1cae5e"
+   "bytes": 11947,
+   "sha1": "9e59fdfb3994470a851c8f78823718bad3607ff7"
   },
   {
    "file": "ServerStorage/Builders/HeistMapBuilder.luau",
@@ -208,15 +208,15 @@
    "file": "StarterPack/M4A1/GunClient.client.luau",
    "instance": "game.StarterPack.M4A1.GunClient",
    "class": "LocalScript",
-   "bytes": 41281,
-   "sha1": "c30daf854d2f1dbb0acc26dd95f9989c5b60af9f"
+   "bytes": 42649,
+   "sha1": "d39a2e5b99d1ee0bd61c9f44644d6857d14a00c7"
   },
   {
    "file": "StarterPack/Sniper/GunClient.client.luau",
    "instance": "game.StarterPack.Sniper.GunClient",
    "class": "LocalScript",
-   "bytes": 41281,
-   "sha1": "c30daf854d2f1dbb0acc26dd95f9989c5b60af9f"
+   "bytes": 42649,
+   "sha1": "d39a2e5b99d1ee0bd61c9f44644d6857d14a00c7"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/AimAssist.client.luau",
@@ -229,8 +229,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/CoverClient.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.CoverClient",
    "class": "LocalScript",
-   "bytes": 27709,
-   "sha1": "c3e8235b4a4e42ab56bb2c56921224ef50bcce8b"
+   "bytes": 27710,
+   "sha1": "a57efa50106b3a649fbce1c5086e1bcfed1e4c6a"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/Crosshair.client.luau",
@@ -271,8 +271,8 @@
    "file": "StarterPlayer/StarterPlayerScripts/Heist/NpcVoice.client.luau",
    "instance": "game.StarterPlayer.StarterPlayerScripts.Heist.NpcVoice",
    "class": "LocalScript",
-   "bytes": 5400,
-   "sha1": "d04a2391cd2952f5c5d47c80e5855b80ec07be69"
+   "bytes": 6217,
+   "sha1": "4bb17861b4b971b04a81d7e9f001e904fc156b14"
   },
   {
    "file": "StarterPlayer/StarterPlayerScripts/Heist/PlannerUI.luau",

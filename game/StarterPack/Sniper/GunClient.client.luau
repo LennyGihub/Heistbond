@@ -88,6 +88,8 @@ local lastPoseSent = 0
 local sentAiming, sentPitch, sentYaw = false, 0, 0
 local sentBlind = false -- blind fire over low cover: last state told to the server
 local blindHold: CFrame? = nil -- blind fire: the gun's hold this frame (torso space)
+local liftSm = 0 -- the gun is lifted this much over a low wall in front of it (studs)
+local liftSent = 0
 local blindAlpha = 0 -- 0..1 blend from the normal hold to the blind-fire hold (animates in and out)
 local lastBlindC0: CFrame? = nil -- the last blind-fire hold, to blend back out of it
 local fireReady = false -- the gun is up (shouldered / held out for blind fire): shots may leave
@@ -314,7 +316,7 @@ local function shotOrigin(params: RaycastParams): Vector3
 	local muzzlePos = muzzle.WorldPosition
 	local char = player.Character
 	local body = char and (char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")) :: BasePart?
-	local from = if blindHold ~= nil then handle.Position elseif body then body.Position else nil
+	local from = if blindHold ~= nil then handle.Position elseif body then body.Position + Vector3.new(0, liftSm, 0) else nil
 	if not from then
 		return muzzlePos
 	end
@@ -846,6 +848,34 @@ local function renderStep(dt: number)
 		else
 			char:SetAttribute("AimYaw", nil)
 		end
+		-- a low wall (muret) in front of the gun: lift the gun over its top so shots don't go into it
+		do
+			local want = 0
+			if engaged and torso then
+				local lookV = handle.CFrame.LookVector
+				local flatV = Vector3.new(lookV.X, 0, lookV.Z)
+				if flatV.Magnitude > 0.2 then
+					flatV = flatV.Unit
+					local baseY = muzzle.WorldPosition.Y - liftSm -- muzzle height without the lift
+					local lp = rayParams()
+					local hit = Workspace:Raycast(Vector3.new(torso.Position.X, baseY, torso.Position.Z), flatV * 4.5, lp)
+					if hit and math.abs(hit.Normal.Y) < 0.5 then
+						local top = Workspace:Raycast(hit.Position + flatV * 0.25 + Vector3.new(0, 4, 0), Vector3.new(0, -6, 0), lp)
+						if top then
+							local rise = top.Position.Y + 0.4 - baseY
+							if rise > 0 and rise < 1.8 then
+								want = rise -- a wall that is not much higher than the gun: lift over it
+							end
+						end
+					end
+				end
+			end
+			liftSm += (want - liftSm) * math.min(1, dt * 12)
+			if math.abs(liftSm - liftSent) > 0.08 or (want == 0 and liftSm < 0.02 and liftSent ~= 0) then
+				liftSent = if liftSm < 0.02 then 0 else liftSm
+				char:SetAttribute("GunLift", if liftSent == 0 then nil else liftSent)
+			end
+		end
 		blindHold = nil
 		local isBlind = typeof(blindGrip) == "Vector3"
 		blindAlpha += ((isBlind and 1 or 0) - blindAlpha) * math.min(1, dt * 12)
@@ -858,7 +888,7 @@ local function renderStep(dt: number)
 			local d = aimFar() - blindGrip
 			local flatD = Vector3.new(d.X, 0, d.Z)
 			local fwd = if flatD.Magnitude > 0.1 then flatD.Unit else torso.CFrame.LookVector
-			local tilt = math.clamp(math.atan2(d.Y, math.max(flatD.Magnitude, 0.1)), -0.3, 0.6)
+			local tilt = math.clamp(math.atan2(d.Y, math.max(flatD.Magnitude, 0.1)), -0.08, 0.6)
 			local look = fwd * math.cos(tilt) + Vector3.yAxis * math.sin(tilt)
 			-- recoil, in the aim's own frame: pushed back along the barrel, muzzle thrown up and aside,
 			-- twisted about the barrel
@@ -868,7 +898,7 @@ local function renderStep(dt: number)
 		end
 		if weld and torso then
 			-- the arms swing the gun out to the blind-fire hold and back (blend)
-			local normalC0 = GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
+			local normalC0 = CFrame.new(0, liftSm, 0) * GunPose.cframe(torso.Size, holdAlpha, pitch, yaw) * kickCF * reloadCF
 			local bc = lastBlindC0
 			weld.C0 = if bc and blindAlpha > 0.001 then normalC0:Lerp(bc, blindAlpha) else normalC0
 			if isBlind then

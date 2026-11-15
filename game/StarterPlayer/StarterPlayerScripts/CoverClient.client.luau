@@ -46,7 +46,7 @@ local MIN_LOW = 2.2 -- a wall lower than this (studs above the ground) is too lo
 local TALL_H = 4.6 -- a wall at least this high is a tall wall (stand); lower = low wall (crouch)
 local LOW_CAM_ABOVE = 1.4 -- behind a low wall the camera looks from this high above the wall's top
 local BLIND_HOLD = 0.6 -- blind fire keeps the gun up this long after the trigger is released
-local GRIP_ABOVE = 0.4 -- blind fire: the gun's grip rests this far above the wall's top
+local GRIP_ABOVE = 0.85 -- blind fire: the gun's grip rests this far above the wall's top
 local GRIP_IN = 0.62 -- ...this far back from the wall's face (toward the body, so the hands reach it)
 local CORNER_GRIP_PAST = 0.9 -- tall wall blind fire: the grip goes this far past the corner
 local CORNER_GRIP_UP = 1.0 -- ...at this height above the root (about the shoulders)
